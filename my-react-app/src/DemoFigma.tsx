@@ -50,9 +50,12 @@ function DemoFigma() {
   }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    // Pan on middle mouse button
-    if (e.button === 1) {
+    // Pan on left mouse button or middle mouse button
+    if (e.button === 0 || e.button === 1) {
       e.preventDefault();
+      if (e.button === 0 && DEBUG) {
+        console.log('Pan start:', { x: e.clientX, y: e.clientY });
+      }
       setIsPanning(true);
       lastMousePosition.current = { x: e.clientX, y: e.clientY };
     }
@@ -75,8 +78,11 @@ function DemoFigma() {
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.button === 1) {
-        setIsPanning(false);
+    if (e.button === 0 || e.button === 1) {
+      if (e.button === 0 && isPanning && DEBUG) {
+        console.log('Pan stop:', { x: e.clientX, y: e.clientY });
+      }
+      setIsPanning(false);
     }
   };
 
@@ -96,6 +102,10 @@ function DemoFigma() {
   const handleZoomIn = () => setZoom(z => z * 1.2);
   const handleZoomOut = () => setZoom(z => z / 1.2);
 
+  const handlePan = (dx: number, dy: number) => {
+    setPan(prevPan => ({ x: prevPan.x + dx, y: prevPan.y + dy }));
+  };
+
   return (
     <div className="figma-clone">
       <div className="top-bar">
@@ -106,6 +116,10 @@ function DemoFigma() {
         <div className="tools-section">
           <button onClick={handleZoomIn}>Zoom In</button>
           <button onClick={handleZoomOut}>Zoom Out</button>
+          <button onClick={() => handlePan(0, 50)}>Pan Up</button>
+          <button onClick={() => handlePan(0, -50)}>Pan Down</button>
+          <button onClick={() => handlePan(50, 0)}>Pan Left</button>
+          <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
           <button>Rectangle</button>
           <button>Circle</button>
         </div>
