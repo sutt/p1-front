@@ -127,7 +127,13 @@ function DemoFigma() {
   }, [currentUser]);
 
   useEffect(() => {
-    fetchShapes();
+    fetchShapes(); // initial fetch
+    const pollingInterval = parseInt(import.meta.env.VITE_POLLING_INTERVAL_MS || '2000', 10);
+    const intervalId = setInterval(fetchShapes, pollingInterval);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [fetchShapes]);
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
