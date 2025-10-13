@@ -74,7 +74,7 @@ function DemoFigma() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
-  const currentUser = "User1";
+  const [currentUser, setCurrentUser] = useState("User1");
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
@@ -229,6 +229,15 @@ function DemoFigma() {
         <div className="menu-section">
           {/* Placeholder for menu */}
           <span>Menu</span>
+          <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Current User: {currentUser}</span>
+            <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
+              Switch User
+            </button>
+            <button onClick={() => console.log('Shapes:', shapes)}>
+              Print Shapes
+            </button>
+          </div>
         </div>
         <div className="tools-section">
           <div>
