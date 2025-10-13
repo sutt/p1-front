@@ -80,7 +80,9 @@ function DemoFigma() {
   const fetchShapes = useCallback(async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
-      const response = await fetch(`${apiUrl}/shapes`);
+      const response = await fetch(`${apiUrl}/shapes`, {
+        mode: 'cors'
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -109,6 +111,7 @@ function DemoFigma() {
     try {
       const response = await fetch(`${apiUrl}/shapes`, {
         method: 'POST',
+        mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
         },
