@@ -72,9 +72,13 @@ function DemoFigma() {
   const [isPanning, setIsPanning] = useState(false);
   const [currentTool, setCurrentTool] = useState<ShapeType | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [isMoveMode, setIsMoveMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState("User1");
+  const [hintMessage, setHintMessage] = useState('');
+
+  const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
@@ -170,6 +174,20 @@ function DemoFigma() {
       return;
     }
 
+    if (isMoveMode && selectedShapeForCurrentUser) {
+      setShapes(prevShapes =>
+        prevShapes.map(shape =>
+          shape.id === selectedShapeForCurrentUser.id
+            ? { ...shape, x: canvasX, y: canvasY }
+            : shape
+        )
+      );
+      setIsMoveMode(false);
+      setHintMessage('Shape moved. Move-shape mode is deactivated.');
+      setTimeout(() => setHintMessage(''), 3000);
+      return;
+    }
+
     if (isSelectMode) {
       let clickedShape: Shape | null = null;
       // Find the topmost shape that was clicked
@@ -223,6 +241,31 @@ function DemoFigma() {
     setPan(prevPan => ({ x: prevPan.x + dx, y: prevPan.y + dy }));
   };
 
+  const getHintText = () => {
+    if (hintMessage) {
+      return hintMessage;
+    }
+    if (currentTool) {
+      return `Click on the canvas to place a ${currentTool}`;
+    }
+    if (isMoveMode) {
+      return "Awaiting new position for the selected shape.";
+    }
+
+    let message = '';
+    if (isSelectMode) {
+      message += 'In Select mode. ';
+    }
+
+    if (selectedShapeForCurrentUser) {
+      message += 'You have a shape selected.';
+    } else {
+      message += 'You do not have a shape selected.';
+    }
+    
+    return message;
+  };
+
   return (
     <div className="figma-clone">
       <div className="top-bar">
@@ -249,18 +292,39 @@ function DemoFigma() {
             <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
             <button
               onClick={() => {
-                setIsSelectMode(!isSelectMode);
-                if (!isSelectMode) setCurrentTool(null);
+                const newIsSelectMode = !isSelectMode;
+                setIsSelectMode(newIsSelectMode);
+                if (newIsSelectMode) {
+                  setCurrentTool(null);
+                  setIsMoveMode(false);
+                }
               }}
               style={{ backgroundColor: isSelectMode ? '#cce5ff' : undefined }}
             >
               Select Mode
             </button>
+            <button
+              onClick={() => {
+                if (selectedShapeForCurrentUser) {
+                  const newIsMoveMode = !isMoveMode;
+                  setIsMoveMode(newIsMoveMode);
+                  if (newIsMoveMode) {
+                    setCurrentTool(null);
+                    setIsSelectMode(false);
+                  }
+                }
+              }}
+              disabled={!selectedShapeForCurrentUser}
+              title={!selectedShapeForCurrentUser ? "Select a shape to enable move mode" : ""}
+              style={{ backgroundColor: isMoveMode ? '#cce5ff' : undefined }}
+            >
+              Move Shape
+            </button>
           </div>
           <div>
-            <button onClick={() => { setCurrentTool('rectangle'); setIsSelectMode(false); }}>Rectangle</button>
-            <button onClick={() => { setCurrentTool('circle'); setIsSelectMode(false); }}>Circle</button>
-            {currentTool && <span>Click on the canvas to place a {currentTool}</span>}
+            <button onClick={() => { setCurrentTool('rectangle'); setIsSelectMode(false); setIsMoveMode(false); }}>Rectangle</button>
+            <button onClick={() => { setCurrentTool('circle'); setIsSelectMode(false); setIsMoveMode(false); }}>Circle</button>
+            <span>{getHintText()}</span>
           </div>
         </div>
       </div>

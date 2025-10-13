@@ -51,6 +51,11 @@
   background-color: #eee;
 }
 
+.tools-section button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .canvas-container {
   flex-grow: 1;
   position: relative;
