@@ -85,7 +85,9 @@ function DemoFigma() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: Shape[] = await response.json();
-      const shapesWithSelection = data.map(shape => ({ ...shape, selectedBy: [] }));
+      // When we GET, we want to keep all selectedBy except for currentUser
+      // When we POST/UPDATE, we want to only send selectedBy for currentUser
+      const shapesWithSelection = data.map(shape => ({ ...shape, selectedBy: shape.selectedBy }));
       setShapes(shapesWithSelection);
     } catch (error) {
       console.error("Error fetching or converting data:", error);
