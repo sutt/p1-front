@@ -4,7 +4,33 @@ import './DemoFigma.css';
 // Module-wide debug flag
 const DEBUG = true;
 
+type ShapeType = 'rectangle' | 'circle';
+
+interface BaseShape {
+  id: string;
+  type: ShapeType;
+  x: number;
+  y: number;
+}
+
+interface RectangleShape extends BaseShape {
+  type: 'rectangle';
+  width: number;
+  height: number;
+}
+
+interface CircleShape extends BaseShape {
+  type: 'circle';
+  radius: number;
+}
+
+type Shape = RectangleShape | CircleShape;
+
 function DemoFigma() {
+  const [shapes, setShapes] = useState<Shape[]>([
+    { id: 'rect1', type: 'rectangle', x: 100, y: 100, width: 300, height: 200 },
+    { id: 'circ1', type: 'circle', x: 600, y: 400, radius: 100 },
+  ]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -148,7 +174,37 @@ function DemoFigma() {
             height: '100%',
           }}
         >
-          {/* Shapes will be rendered here later */}
+          {shapes.map(shape => {
+            if (shape.type === 'rectangle') {
+              return (
+                <div
+                  key={shape.id}
+                  className="shape rectangle"
+                  style={{
+                    left: `${shape.x}px`,
+                    top: `${shape.y}px`,
+                    width: `${shape.width}px`,
+                    height: `${shape.height}px`,
+                  }}
+                />
+              );
+            }
+            if (shape.type === 'circle') {
+              return (
+                <div
+                  key={shape.id}
+                  className="shape circle"
+                  style={{
+                    left: `${shape.x - shape.radius}px`,
+                    top: `${shape.y - shape.radius}px`,
+                    width: `${shape.radius * 2}px`,
+                    height: `${shape.radius * 2}px`,
+                  }}
+                />
+              );
+            }
+            return null;
+          })}
         </div>
       </div>
     </div>
