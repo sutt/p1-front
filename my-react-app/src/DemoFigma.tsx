@@ -1,4 +1,4 @@
-import { useState, useRef, MouseEvent, WheelEvent } from 'react';
+import { useState, useRef, MouseEvent, WheelEvent, CSSProperties } from 'react';
 import './DemoFigma.css';
 
 // Module-wide debug flag
@@ -103,6 +103,11 @@ function DemoFigma() {
       <div
         ref={canvasRef}
         className="canvas-container"
+        style={{
+          '--grid-size': `${50 * zoom}px`,
+          '--pan-x': `${pan.x}px`,
+          '--pan-y': `${pan.y}px`,
+        } as CSSProperties}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
