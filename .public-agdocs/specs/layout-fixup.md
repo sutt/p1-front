@@ -1,0 +1,1 @@
+In DemoFigma resturcture the layout of the menu and tools layout to arranged vertically, with menu at the top and the tools beneath and having both be left aligned for their contents.
