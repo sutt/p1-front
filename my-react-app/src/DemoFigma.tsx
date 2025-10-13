@@ -1,4 +1,4 @@
-import { useState, useRef, MouseEvent, CSSProperties, useEffect, useCallback } from 'react';
+import { useState, useRef, MouseEvent, CSSProperties, useEffect, useCallback, Fragment } from 'react';
 import './DemoFigma.css';
 
 // Module-wide debug flag
@@ -11,6 +11,7 @@ interface BaseShape {
   type: ShapeType;
   x: number;
   y: number;
+  selectedBy: string[];
 }
 
 interface RectangleShape extends BaseShape {
@@ -38,6 +39,7 @@ const createShape = (type: ShapeType, x: number, y: number): Shape => {
       y,
       width: getRandomSize(),
       height: getRandomSize(),
+      selectedBy: [],
     };
   } else { // circle
     return {
@@ -46,21 +48,33 @@ const createShape = (type: ShapeType, x: number, y: number): Shape => {
       x,
       y,
       radius: getRandomSize(),
+      selectedBy: [],
     };
   }
 };
 
+const isPointInRectangle = (px: number, py: number, rect: RectangleShape) => {
+  return px >= rect.x && px <= rect.x + rect.width && py >= rect.y && py <= rect.y + rect.height;
+};
+
+const isPointInCircle = (px: number, py: number, circle: CircleShape) => {
+  const distance = Math.sqrt((px - circle.x) ** 2 + (py - circle.y) ** 2);
+  return distance <= circle.radius;
+};
+
 function DemoFigma() {
   const [shapes, setShapes] = useState<Shape[]>([
-    { id: 'rect1', type: 'rectangle', x: 100, y: 100, width: 300, height: 200 },
-    { id: 'circ1', type: 'circle', x: 600, y: 400, radius: 100 },
+    { id: 'rect1', type: 'rectangle', x: 100, y: 100, width: 300, height: 200, selectedBy: [] },
+    { id: 'circ1', type: 'circle', x: 600, y: 400, radius: 100, selectedBy: [] },
   ]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [currentTool, setCurrentTool] = useState<ShapeType | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  const currentUser = "User1";
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
@@ -101,7 +115,7 @@ function DemoFigma() {
   }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (currentTool) return;
+    if (currentTool || isSelectMode) return;
 
     // Pan on left mouse button or middle mouse button
     if (e.button === 0 || e.button === 1) {
@@ -156,6 +170,47 @@ function DemoFigma() {
       return;
     }
 
+    if (isSelectMode) {
+      let clickedShape: Shape | null = null;
+      // Find the topmost shape that was clicked
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const shape = shapes[i];
+        let hit = false;
+        if (shape.type === 'rectangle') {
+          hit = isPointInRectangle(canvasX, canvasY, shape);
+        } else {
+          hit = isPointInCircle(canvasX, canvasY, shape);
+        }
+        if (hit) {
+          clickedShape = shape;
+          break;
+        }
+      }
+
+      setShapes(prevShapes => prevShapes.map(shape => {
+        const newSelectedBy = [...shape.selectedBy];
+        const userIndex = newSelectedBy.indexOf(currentUser);
+
+        if (shape.id === clickedShape?.id) {
+          // This is the clicked shape
+          if (userIndex > -1) {
+            // Already selected by user, so deselect
+            newSelectedBy.splice(userIndex, 1);
+          } else {
+            // Not selected, so select
+            newSelectedBy.push(currentUser);
+          }
+        } else {
+          // This is not the clicked shape, deselect for current user
+          if (userIndex > -1) {
+            newSelectedBy.splice(userIndex, 1);
+          }
+        }
+        return { ...shape, selectedBy: newSelectedBy };
+      }));
+      return;
+    }
+
     if (DEBUG) {
       console.log(`Canvas Coords: (${canvasX.toFixed(2)}, ${canvasY.toFixed(2)})`);
     }
@@ -183,17 +238,26 @@ function DemoFigma() {
             <button onClick={() => handlePan(0, -50)}>Pan Down</button>
             <button onClick={() => handlePan(50, 0)}>Pan Left</button>
             <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
+            <button
+              onClick={() => {
+                setIsSelectMode(!isSelectMode);
+                if (!isSelectMode) setCurrentTool(null);
+              }}
+              style={{ backgroundColor: isSelectMode ? '#cce5ff' : undefined }}
+            >
+              Select Mode
+            </button>
           </div>
           <div>
-            <button onClick={() => setCurrentTool('rectangle')}>Rectangle</button>
-            <button onClick={() => setCurrentTool('circle')}>Circle</button>
+            <button onClick={() => { setCurrentTool('rectangle'); setIsSelectMode(false); }}>Rectangle</button>
+            <button onClick={() => { setCurrentTool('circle'); setIsSelectMode(false); }}>Circle</button>
             {currentTool && <span>Click on the canvas to place a {currentTool}</span>}
           </div>
         </div>
       </div>
       <div
         ref={canvasRef}
-        className={`canvas-container ${currentTool ? 'shape-creation-mode' : ''}`}
+        className={`canvas-container ${currentTool || isSelectMode ? 'shape-creation-mode' : ''}`}
         style={{
           '--grid-size': `${50 * zoom}px`,
           '--pan-x': `${pan.x}px`,
@@ -216,32 +280,57 @@ function DemoFigma() {
           }}
         >
           {shapes.map(shape => {
+            const isSelected = shape.selectedBy.length > 0;
             if (shape.type === 'rectangle') {
               return (
-                <div
-                  key={shape.id}
-                  className="shape rectangle"
-                  style={{
-                    left: `${shape.x}px`,
-                    top: `${shape.y}px`,
-                    width: `${shape.width}px`,
-                    height: `${shape.height}px`,
-                  }}
-                />
+                <Fragment key={shape.id}>
+                  {isSelected && (
+                    <div
+                      className="shape-tooltip"
+                      style={{
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                      }}
+                    >
+                      {shape.selectedBy.join(', ')}
+                    </div>
+                  )}
+                  <div
+                    className={`shape rectangle ${isSelected ? 'selected' : ''}`}
+                    style={{
+                      left: `${shape.x}px`,
+                      top: `${shape.y}px`,
+                      width: `${shape.width}px`,
+                      height: `${shape.height}px`,
+                    }}
+                  />
+                </Fragment>
               );
             }
             if (shape.type === 'circle') {
               return (
-                <div
-                  key={shape.id}
-                  className="shape circle"
-                  style={{
-                    left: `${shape.x - shape.radius}px`,
-                    top: `${shape.y - shape.radius}px`,
-                    width: `${shape.radius * 2}px`,
-                    height: `${shape.radius * 2}px`,
-                  }}
-                />
+                <Fragment key={shape.id}>
+                  {isSelected && (
+                    <div
+                      className="shape-tooltip"
+                      style={{
+                        left: `${shape.x - shape.radius}px`,
+                        top: `${shape.y - shape.radius}px`,
+                      }}
+                    >
+                      {shape.selectedBy.join(', ')}
+                    </div>
+                  )}
+                  <div
+                    className={`shape circle ${isSelected ? 'selected' : ''}`}
+                    style={{
+                      left: `${shape.x - shape.radius}px`,
+                      top: `${shape.y - shape.radius}px`,
+                      width: `${shape.radius * 2}px`,
+                      height: `${shape.radius * 2}px`,
+                    }}
+                  />
+                </Fragment>
               );
             }
             return null;
