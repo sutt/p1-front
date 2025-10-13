@@ -98,18 +98,34 @@ function DemoFigma() {
 
   const updateShapesOnServer = useCallback(async (shapesToUpdate: Shape[]) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-    const payload = {
-      user: currentUser,
-      data: shapesToUpdate,
-    };
-
-    if (DEBUG) {
-      console.log('Kicking off XHR POST to /shapes');
-      console.log('Sending shapes data:', payload.data);
-    }
 
     try {
-      const response = await fetch(`${apiUrl}/shapes`, {
+      // 1. Get most recent data from server
+      const response = await fetch(`${apiUrl}/shapes`, { mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const serverShapes: Shape[] = await response.json();
+
+      // 2. Upsert client's state to this updated data
+      const shapesToUpdateMap = new Map(shapesToUpdate.map(s => [s.id, s]));
+      const serverShapesMap = new Map(serverShapes.map(s => [s.id, s]));
+
+      // Merge server shapes with local changes. Local changes win.
+      const mergedShapesMap = new Map([...serverShapesMap, ...shapesToUpdateMap]);
+      const finalShapes = Array.from(mergedShapesMap.values());
+
+      const payload = {
+        user: currentUser,
+        data: finalShapes,
+      };
+
+      if (DEBUG) {
+        console.log('Kicking off XHR POST to /shapes');
+        console.log('Sending shapes data:', payload.data);
+      }
+
+      const postResponse = await fetch(`${apiUrl}/shapes`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -118,8 +134,8 @@ function DemoFigma() {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!postResponse.ok) {
+        throw new Error(`HTTP error! status: ${postResponse.status}`);
       }
     } catch (error) {
       console.error("Error updating shapes on server:", error);
