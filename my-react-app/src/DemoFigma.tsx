@@ -1,4 +1,4 @@
-import { useState, useRef, MouseEvent, WheelEvent, CSSProperties } from 'react';
+import { useState, useRef, MouseEvent, CSSProperties, useEffect, useCallback } from 'react';
 import './DemoFigma.css';
 
 // Module-wide debug flag
@@ -11,7 +11,7 @@ function DemoFigma() {
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
+  const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
     const zoomFactor = 1.1;
     // Get mouse position relative to canvas container
@@ -37,7 +37,17 @@ function DemoFigma() {
             console.log('Zoom state:', { zoom: newZoom, pan: {x: newPanX, y: newPanY} });
         }
     }
-  };
+  }, [pan, zoom]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        canvas.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     // Pan on middle mouse button
@@ -108,7 +118,6 @@ function DemoFigma() {
           '--pan-x': `${pan.x}px`,
           '--pan-y': `${pan.y}px`,
         } as CSSProperties}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
