@@ -144,6 +144,22 @@ function DemoFigma() {
     }
   }, [currentUser]);
 
+  const handleResetData = async () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    try {
+      const response = await fetch(`${apiUrl}/reset_data`, {
+        method: 'POST',
+        mode: 'cors'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      fetchShapes();
+    } catch (error) {
+      console.error("Error resetting data:", error);
+    }
+  };
+
   useEffect(() => {
     fetchShapes(); // initial fetch
     const pollingInterval = parseInt(import.meta.env.VITE_POLLING_INTERVAL_MS || '2000', 10);
@@ -358,6 +374,7 @@ function DemoFigma() {
           <span>Menu</span>
           <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button onClick={fetchShapes}>Get Data</button>
+            <button onClick={handleResetData}>Reset Data</button>
             <span>Current User: {currentUser}</span>
             <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
               Switch User
