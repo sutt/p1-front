@@ -63,10 +63,7 @@ const isPointInCircle = (px: number, py: number, circle: CircleShape) => {
 };
 
 function DemoFigma() {
-  const [shapes, setShapes] = useState<Shape[]>([
-    { id: 'rect1', type: 'rectangle', x: 100, y: 100, width: 300, height: 200, selectedBy: [] },
-    { id: 'circ1', type: 'circle', x: 600, y: 400, radius: 100, selectedBy: [] },
-  ]);
+  const [shapes, setShapes] = useState<Shape[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -79,6 +76,25 @@ function DemoFigma() {
   const [hintMessage, setHintMessage] = useState('');
 
   const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
+
+  const fetchShapes = useCallback(async () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    try {
+      const response = await fetch(`${apiUrl}/shapes`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: Shape[] = await response.json();
+      const shapesWithSelection = data.map(shape => ({ ...shape, selectedBy: [] }));
+      setShapes(shapesWithSelection);
+    } catch (error) {
+      console.error("Error fetching or converting data:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShapes();
+  }, [fetchShapes]);
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
@@ -273,6 +289,7 @@ function DemoFigma() {
           {/* Placeholder for menu */}
           <span>Menu</span>
           <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={fetchShapes}>Get Data</button>
             <span>Current User: {currentUser}</span>
             <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
               Switch User
