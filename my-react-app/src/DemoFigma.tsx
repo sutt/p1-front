@@ -26,6 +26,30 @@ interface CircleShape extends BaseShape {
 
 type Shape = RectangleShape | CircleShape;
 
+const getRandomSize = () => Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+
+const createShape = (type: ShapeType, x: number, y: number): Shape => {
+  const id = `shape_${Date.now()}`;
+  if (type === 'rectangle') {
+    return {
+      id,
+      type: 'rectangle',
+      x,
+      y,
+      width: getRandomSize(),
+      height: getRandomSize(),
+    };
+  } else { // circle
+    return {
+      id,
+      type: 'circle',
+      x,
+      y,
+      radius: getRandomSize(),
+    };
+  }
+};
+
 function DemoFigma() {
   const [shapes, setShapes] = useState<Shape[]>([
     { id: 'rect1', type: 'rectangle', x: 100, y: 100, width: 300, height: 200 },
@@ -34,6 +58,7 @@ function DemoFigma() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [currentTool, setCurrentTool] = useState<ShapeType | null>(null);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +101,8 @@ function DemoFigma() {
   }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    if (currentTool) return;
+
     // Pan on left mouse button or middle mouse button
     if (e.button === 0 || e.button === 1) {
       e.preventDefault();
@@ -113,14 +140,23 @@ function DemoFigma() {
   };
 
   const handleCanvasClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (DEBUG && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    if (!canvasRef.current) return;
 
-      const canvasX = (mouseX - pan.x) / zoom;
-      const canvasY = (mouseY - pan.y) / zoom;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
+    const canvasX = (mouseX - pan.x) / zoom;
+    const canvasY = (mouseY - pan.y) / zoom;
+
+    if (currentTool) {
+      const newShape = createShape(currentTool, canvasX, canvasY);
+      setShapes(prevShapes => [...prevShapes, newShape]);
+      setCurrentTool(null);
+      return;
+    }
+
+    if (DEBUG) {
       console.log(`Canvas Coords: (${canvasX.toFixed(2)}, ${canvasY.toFixed(2)})`);
     }
   };
@@ -140,19 +176,24 @@ function DemoFigma() {
           <span>Menu</span>
         </div>
         <div className="tools-section">
-          <button onClick={handleZoomIn}>Zoom In</button>
-          <button onClick={handleZoomOut}>Zoom Out</button>
-          <button onClick={() => handlePan(0, 50)}>Pan Up</button>
-          <button onClick={() => handlePan(0, -50)}>Pan Down</button>
-          <button onClick={() => handlePan(50, 0)}>Pan Left</button>
-          <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
-          <button>Rectangle</button>
-          <button>Circle</button>
+          <div>
+            <button onClick={handleZoomIn}>Zoom In</button>
+            <button onClick={handleZoomOut}>Zoom Out</button>
+            <button onClick={() => handlePan(0, 50)}>Pan Up</button>
+            <button onClick={() => handlePan(0, -50)}>Pan Down</button>
+            <button onClick={() => handlePan(50, 0)}>Pan Left</button>
+            <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
+          </div>
+          <div>
+            <button onClick={() => setCurrentTool('rectangle')}>Rectangle</button>
+            <button onClick={() => setCurrentTool('circle')}>Circle</button>
+            {currentTool && <span>Click on the canvas to place a {currentTool}</span>}
+          </div>
         </div>
       </div>
       <div
         ref={canvasRef}
-        className="canvas-container"
+        className={`canvas-container ${currentTool ? 'shape-creation-mode' : ''}`}
         style={{
           '--grid-size': `${50 * zoom}px`,
           '--pan-x': `${pan.x}px`,
