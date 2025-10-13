@@ -35,8 +35,8 @@ const createShape = (type: ShapeType, x: number, y: number): Shape => {
     return {
       id,
       type: 'rectangle',
-      x,
-      y,
+      x: Math.round(x),
+      y: Math.round(y),
       width: getRandomSize(),
       height: getRandomSize(),
       selectedBy: [],
@@ -45,8 +45,8 @@ const createShape = (type: ShapeType, x: number, y: number): Shape => {
     return {
       id,
       type: 'circle',
-      x,
-      y,
+      x: Math.round(x),
+      y: Math.round(y),
       radius: getRandomSize(),
       selectedBy: [],
     };
@@ -196,7 +196,7 @@ function DemoFigma() {
       setShapes(prevShapes =>
         prevShapes.map(shape =>
           shape.id === selectedShapeForCurrentUser.id
-            ? { ...shape, x: canvasX, y: canvasY }
+            ? { ...shape, x: Math.round(canvasX), y: Math.round(canvasY) }
             : shape
         )
       );
