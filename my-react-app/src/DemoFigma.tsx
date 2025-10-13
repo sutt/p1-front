@@ -94,6 +94,35 @@ function DemoFigma() {
     }
   }, []);
 
+  const updateShapesOnServer = useCallback(async (shapesToUpdate: Shape[]) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    const payload = {
+      user: currentUser,
+      data: shapesToUpdate,
+    };
+
+    if (DEBUG) {
+      console.log('Kicking off XHR POST to /shapes');
+      console.log('Sending shapes data:', payload.data);
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/shapes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error updating shapes on server:", error);
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     fetchShapes();
   }, [fetchShapes]);
@@ -187,19 +216,25 @@ function DemoFigma() {
 
     if (currentTool) {
       const newShape = createShape(currentTool, canvasX, canvasY);
-      setShapes(prevShapes => [...prevShapes, newShape]);
+      setShapes(prevShapes => {
+        const newShapes = [...prevShapes, newShape];
+        updateShapesOnServer(newShapes);
+        return newShapes;
+      });
       setCurrentTool(null);
       return;
     }
 
     if (isMoveMode && selectedShapeForCurrentUser) {
-      setShapes(prevShapes =>
-        prevShapes.map(shape =>
+      setShapes(prevShapes => {
+        const newShapes = prevShapes.map(shape =>
           shape.id === selectedShapeForCurrentUser.id
             ? { ...shape, x: Math.round(canvasX), y: Math.round(canvasY) }
             : shape
-        )
-      );
+        );
+        updateShapesOnServer(newShapes);
+        return newShapes;
+      });
       setIsMoveMode(false);
       setHintMessage('Shape moved. Move-shape mode is deactivated.');
       setTimeout(() => setHintMessage(''), 3000);
@@ -223,27 +258,31 @@ function DemoFigma() {
         }
       }
 
-      setShapes(prevShapes => prevShapes.map(shape => {
-        const newSelectedBy = [...shape.selectedBy];
-        const userIndex = newSelectedBy.indexOf(currentUser);
+      setShapes(prevShapes => {
+        const newShapes = prevShapes.map(shape => {
+          const newSelectedBy = [...shape.selectedBy];
+          const userIndex = newSelectedBy.indexOf(currentUser);
 
-        if (shape.id === clickedShape?.id) {
-          // This is the clicked shape
-          if (userIndex > -1) {
-            // Already selected by user, so deselect
-            newSelectedBy.splice(userIndex, 1);
+          if (shape.id === clickedShape?.id) {
+            // This is the clicked shape
+            if (userIndex > -1) {
+              // Already selected by user, so deselect
+              newSelectedBy.splice(userIndex, 1);
+            } else {
+              // Not selected, so select
+              newSelectedBy.push(currentUser);
+            }
           } else {
-            // Not selected, so select
-            newSelectedBy.push(currentUser);
+            // This is not the clicked shape, deselect for current user
+            if (userIndex > -1) {
+              newSelectedBy.splice(userIndex, 1);
+            }
           }
-        } else {
-          // This is not the clicked shape, deselect for current user
-          if (userIndex > -1) {
-            newSelectedBy.splice(userIndex, 1);
-          }
-        }
-        return { ...shape, selectedBy: newSelectedBy };
-      }));
+          return { ...shape, selectedBy: newSelectedBy };
+        });
+        updateShapesOnServer(newShapes);
+        return newShapes;
+      });
       return;
     }
 
