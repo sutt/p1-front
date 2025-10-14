@@ -95,22 +95,50 @@ function DemoFigma() {
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState('');
-  const [isEditingUsername, setIsEditingUsername] = useState(false);
-  const [usernameInput, setUsernameInput] = useState('');
   const [hintMessage, setHintMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
   const [showDebugTools, setShowDebugTools] = useState(false);
+  const [showAuthForm, setShowAuthForm] = useState<'login' | 'signup' | null>(null);
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
   useEffect(() => {
-    const savedUsername = localStorage.getItem('username');
-    if (savedUsername) {
-      setCurrentUser(savedUsername);
-    } else {
-      const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
-      setCurrentUser(anonUser);
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('jwt_token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      if (token) {
+        try {
+          const response = await fetch(`${apiUrl}/api/me`, {
+            mode: 'cors',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            }
+          });
+          if (response.ok) {
+            const user = await response.json();
+            setCurrentUser(user.username);
+          } else {
+            localStorage.removeItem('jwt_token');
+            setHintMessage('Your session expired. Please sign in again.');
+            setTimeout(() => setHintMessage(''), 3000);
+            const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
+            setCurrentUser(anonUser);
+          }
+        } catch (error) {
+          console.error("Error verifying token:", error);
+          localStorage.removeItem('jwt_token');
+          const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
+          setCurrentUser(anonUser);
+        }
+      } else {
+        const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
+        setCurrentUser(anonUser);
+      }
+    };
+    checkAuth();
   }, []);
 
   const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
@@ -218,20 +246,70 @@ function DemoFigma() {
     }
   }, [currentUser]);
 
-  const handleSetUsername = () => {
-    if (usernameInput.trim()) {
-      const newUsername = usernameInput.trim();
-      setCurrentUser(newUsername);
-      localStorage.setItem('username', newUsername);
-      setIsEditingUsername(false);
+  const handleSignup = async () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    try {
+      const response = await fetch(`${apiUrl}/api/signup`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: authUsername, password: authPassword }),
+      });
+      if (response.ok) {
+        setHintMessage('Signup successful! Please log in.');
+        setTimeout(() => setHintMessage(''), 3000);
+        setShowAuthForm(null);
+        setAuthUsername('');
+        setAuthPassword('');
+        setAuthError('');
+      } else {
+        setAuthError("Looks like something went wrong, you can still continue as an Anon user for interacting with the canvas.");
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      setAuthError("Looks like something went wrong, you can still continue as an Anon user for interacting with the canvas.");
     }
   };
 
-  const handleSetAnonUser = () => {
+  const handleLogin = async () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    const formData = new URLSearchParams();
+    formData.append('username', authUsername);
+    formData.append('password', authPassword);
+
+    try {
+      const response = await fetch(`${apiUrl}/api/login`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('jwt_token', data.access_token);
+        setCurrentUser(authUsername);
+        setShowAuthForm(null);
+        setAuthUsername('');
+        setAuthPassword('');
+        setAuthError('');
+      } else {
+        setAuthError("Looks like something went wrong, you can still continue as an Anon user for interacting with the canvas.");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setAuthError("Looks like something went wrong, you can still continue as an Anon user for interacting with the canvas.");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('jwt_token');
     const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
     setCurrentUser(anonUser);
-    localStorage.removeItem('username');
-    setIsEditingUsername(false);
   };
 
   const handleResetData = async () => {
@@ -533,22 +611,36 @@ function DemoFigma() {
         )}
         <div className="users-section">
           <span>Current User: {currentUser}</span>
-          {!isEditingUsername ? (
-            <button onClick={() => { setIsEditingUsername(true); setUsernameInput(currentUser); }}>Set User</button>
-          ) : (
+          {currentUser.startsWith('Anon') ? (
             <>
+              <button onClick={() => { setShowAuthForm('login'); setAuthError(''); }}>Login</button>
+              <button onClick={() => { setShowAuthForm('signup'); setAuthError(''); }}>Signup</button>
+            </>
+          ) : (
+            <button onClick={handleLogout}>Logout</button>
+          )}
+          {showAuthForm && (
+            <div className="auth-form">
+              <h3>{showAuthForm === 'login' ? 'Login' : 'Signup'}</h3>
               <input
                 type="text"
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                maxLength={20}
-                placeholder="Enter username"
+                value={authUsername}
+                onChange={(e) => setAuthUsername(e.target.value)}
+                placeholder="Username"
               />
-              <button onClick={handleSetUsername}>Save</button>
-              <button onClick={() => setIsEditingUsername(false)}>Cancel</button>
-            </>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Password"
+              />
+              <button onClick={showAuthForm === 'login' ? handleLogin : handleSignup}>
+                {showAuthForm === 'login' ? 'Login' : 'Signup'}
+              </button>
+              <button onClick={() => setShowAuthForm(null)}>Cancel</button>
+              {authError && <p style={{ color: 'red' }}>{authError}</p>}
+            </div>
           )}
-          <button onClick={handleSetAnonUser}>Anon User</button>
           <span>
             Users Online: {onlineUsers.map((user, index) => (
               <span key={user.userName} title={formatDuration(user.created_at)}>
