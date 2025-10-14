@@ -1,0 +1,1 @@
+In DemoFigma, implements polling that gets the updated data from the server /shapes route. Add an env var for polling interval.

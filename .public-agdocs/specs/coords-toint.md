@@ -1,0 +1,1 @@
+In DemoFigma, when creating a shape or moving, add a processing/validation step to convert the x,y, width, height, radius, fields to int. You can use simple rounding here.

@@ -1,0 +1,1 @@
+In DemoFigma, when running updateShapesOnServer() first get the most recent data from the server and then upsert the client's state to this updated data before sending that final data in the post.

@@ -1,0 +1,1 @@
+In DemoFigma, create an env variable which hides the menu row of buttons ("Get Data" "Switch User", etc) when set to true.
