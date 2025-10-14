@@ -77,6 +77,8 @@ function DemoFigma() {
   const [currentUser, setCurrentUser] = useState("User1");
   const [hintMessage, setHintMessage] = useState('');
 
+  const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
+
   const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
 
   const fetchShapes = useCallback(async () => {
@@ -369,21 +371,23 @@ function DemoFigma() {
   return (
     <div className="figma-clone">
       <div className="top-bar">
-        <div className="menu-section">
-          {/* Placeholder for menu */}
-          <span>Menu</span>
-          <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button onClick={fetchShapes}>Get Data</button>
-            <button onClick={handleResetData}>Reset Data</button>
-            <span>Current User: {currentUser}</span>
-            <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
-              Switch User
-            </button>
-            <button onClick={() => console.log('Shapes:', shapes)}>
-              Print Shapes
-            </button>
+        {!hideDebugMenu && (
+          <div className="menu-section">
+            {/* Placeholder for menu */}
+            <span>Menu</span>
+            <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button onClick={fetchShapes}>Get Data</button>
+              <button onClick={handleResetData}>Reset Data</button>
+              <span>Current User: {currentUser}</span>
+              <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
+                Switch User
+              </button>
+              <button onClick={() => console.log('Shapes:', shapes)}>
+                Print Shapes
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         <div className="tools-section">
           <div>
             <button onClick={handleZoomIn}>Zoom In</button>
