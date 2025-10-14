@@ -249,7 +249,7 @@ function DemoFigma() {
   const handleSignup = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
-      const response = await fetch(`${apiUrl}/api/signup`, {
+      const response = await fetch(`${apiUrl}/signup`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -280,7 +280,7 @@ function DemoFigma() {
     formData.append('password', authPassword);
 
     try {
-      const response = await fetch(`${apiUrl}/api/login`, {
+      const response = await fetch(`${apiUrl}/login`, {
         method: 'POST',
         mode: 'cors',
         headers: {
