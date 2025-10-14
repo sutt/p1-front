@@ -1,5 +1,7 @@
-import { useState, useRef, MouseEvent, CSSProperties, useEffect, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+import type { MouseEvent, CSSProperties } from 'react';
 import './DemoFigma.css';
+
 
 // Module-wide debug flag
 const DEBUG = true;
