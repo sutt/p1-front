@@ -74,10 +74,22 @@ function DemoFigma() {
   const [isMoveMode, setIsMoveMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [currentUser, setCurrentUser] = useState("User1");
+  const [currentUser, setCurrentUser] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
   const [hintMessage, setHintMessage] = useState('');
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
+
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('username');
+    if (savedUsername) {
+      setCurrentUser(savedUsername);
+    } else {
+      const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
+      setCurrentUser(anonUser);
+    }
+  }, []);
 
   const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
 
@@ -145,6 +157,22 @@ function DemoFigma() {
       console.error("Error updating shapes on server:", error);
     }
   }, [currentUser]);
+
+  const handleSetUsername = () => {
+    if (usernameInput.trim()) {
+      const newUsername = usernameInput.trim();
+      setCurrentUser(newUsername);
+      localStorage.setItem('username', newUsername);
+      setIsEditingUsername(false);
+    }
+  };
+
+  const handleSetAnonUser = () => {
+    const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
+    setCurrentUser(anonUser);
+    localStorage.removeItem('username');
+    setIsEditingUsername(false);
+  };
 
   const handleResetData = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
@@ -378,16 +406,32 @@ function DemoFigma() {
             <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button onClick={fetchShapes}>Get Data</button>
               <button onClick={handleResetData}>Reset Data</button>
-              <span>Current User: {currentUser}</span>
-              <button onClick={() => setCurrentUser(currentUser === 'User1' ? 'User2' : 'User1')}>
-                Switch User
-              </button>
               <button onClick={() => console.log('Shapes:', shapes)}>
                 Print Shapes
               </button>
             </div>
           </div>
         )}
+        <div className="users-section">
+          <span>Current User: {currentUser}</span>
+          {!isEditingUsername ? (
+            <button onClick={() => { setIsEditingUsername(true); setUsernameInput(currentUser); }}>Set User</button>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                maxLength={20}
+                placeholder="Enter username"
+              />
+              <button onClick={handleSetUsername}>Save</button>
+              <button onClick={() => setIsEditingUsername(false)}>Cancel</button>
+            </>
+          )}
+          <button onClick={handleSetAnonUser}>Anon User</button>
+          <span>Users Online: (placeholder)</span>
+        </div>
         <div className="tools-section">
           <div>
             <button onClick={handleZoomIn}>Zoom In</button>

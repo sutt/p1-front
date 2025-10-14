@@ -26,6 +26,12 @@
   align-items: center;
 }
 
+.users-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .tools-section {
   display: flex;
   flex-direction: column;
