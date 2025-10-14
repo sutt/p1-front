@@ -124,15 +124,53 @@ function DemoFigma() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data: Shape[] = await response.json();
-      // When we GET, we want to keep all selectedBy except for currentUser
-      // When we POST/UPDATE, we want to only send selectedBy for currentUser
-      const shapesWithSelection = data.map(shape => ({ ...shape, selectedBy: shape.selectedBy }));
-      setShapes(shapesWithSelection);
+      const serverShapes: Shape[] = await response.json();
+      
+      setShapes(localShapes => {
+        if (localShapes.length === 0) {
+          return serverShapes;
+        }
+
+        const localShapesMap = new Map(localShapes.map(s => [s.id, s]));
+        const serverShapesMap = new Map(serverShapes.map(s => [s.id, s]));
+
+        // Start with server state
+        const mergedShapesMap = new Map(serverShapesMap);
+
+        for (const [id, localShape] of localShapesMap.entries()) {
+          const serverShape = serverShapesMap.get(id);
+
+          if (!serverShape) {
+            // New shape created locally, add it to the map.
+            mergedShapesMap.set(id, localShape);
+          } else {
+            // Existing shape, merge properties.
+            const mergedShape = { ...serverShape }; // Start with server version
+
+            // Preserve current user's selection from local state.
+            const isSelectedLocally = localShape.selectedBy.includes(currentUser);
+            const otherUsersSelections = serverShape.selectedBy.filter(u => u !== currentUser);
+            
+            mergedShape.selectedBy = [...otherUsersSelections];
+            if (isSelectedLocally) {
+              mergedShape.selectedBy.push(currentUser);
+            }
+
+            // If shape is selected by current user, local position is authoritative.
+            if (isSelectedLocally) {
+              mergedShape.x = localShape.x;
+              mergedShape.y = localShape.y;
+            }
+            
+            mergedShapesMap.set(id, mergedShape);
+          }
+        }
+        return Array.from(mergedShapesMap.values());
+      });
     } catch (error) {
       console.error("Error fetching or converting data:", error);
     }
-  }, []);
+  }, [currentUser]);
 
   const updateShapesOnServer = useCallback(async (shapesToUpdate: Shape[]) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
@@ -206,7 +244,15 @@ function DemoFigma() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      fetchShapes();
+      // After a successful reset, we want to overwrite local state with the server's state.
+      // A direct call to fetchShapes() with its new merge logic would preserve local-only shapes,
+      // which is wrong after a reset. So, we fetch here and overwrite the state.
+      const shapesResponse = await fetch(`${apiUrl}/shapes`, { mode: 'cors' });
+      if (!shapesResponse.ok) {
+        throw new Error(`HTTP error! status: ${shapesResponse.status}`);
+      }
+      const serverShapes: Shape[] = await shapesResponse.json();
+      setShapes(serverShapes);
     } catch (error) {
       console.error("Error resetting data:", error);
     }
