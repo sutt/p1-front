@@ -57,6 +57,10 @@
   background-color: #eee;
 }
 
+.tools-section button.active {
+  background-color: #cce5ff;
+}
+
 .tools-section button:disabled {
   cursor: not-allowed;
   opacity: 0.5;

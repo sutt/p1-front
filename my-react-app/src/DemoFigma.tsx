@@ -90,8 +90,7 @@ function DemoFigma() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [currentTool, setCurrentTool] = useState<ShapeType | null>(null);
-  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [activeTool, setActiveTool] = useState<'rectangle' | 'circle' | 'select' | null>(null);
   const [isMoveMode, setIsMoveMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -100,6 +99,7 @@ function DemoFigma() {
   const [usernameInput, setUsernameInput] = useState('');
   const [hintMessage, setHintMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
+  const [showDebugTools, setShowDebugTools] = useState(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -341,7 +341,7 @@ function DemoFigma() {
   }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (currentTool || isSelectMode) return;
+    if (activeTool) return;
 
     // Pan on left mouse button or middle mouse button
     if (e.button === 0 || e.button === 1) {
@@ -389,14 +389,13 @@ function DemoFigma() {
     const canvasX = (mouseX - pan.x) / zoom;
     const canvasY = (mouseY - pan.y) / zoom;
 
-    if (currentTool) {
-      const newShape = createShape(currentTool, canvasX, canvasY);
+    if (activeTool === 'rectangle' || activeTool === 'circle') {
+      const newShape = createShape(activeTool, canvasX, canvasY);
       setShapes(prevShapes => {
         const newShapes = [...prevShapes, newShape];
         updateShapesOnServer(newShapes);
         return newShapes;
       });
-      setCurrentTool(null);
       return;
     }
 
@@ -416,7 +415,7 @@ function DemoFigma() {
       return;
     }
 
-    if (isSelectMode) {
+    if (activeTool === 'select') {
       let clickedShape: Shape | null = null;
       // Find the topmost shape that was clicked
       for (let i = shapes.length - 1; i >= 0; i--) {
@@ -477,15 +476,15 @@ function DemoFigma() {
     if (hintMessage) {
       return hintMessage;
     }
-    if (currentTool) {
-      return `Click on the canvas to place a ${currentTool}`;
+    if (activeTool === 'rectangle' || activeTool === 'circle') {
+      return `Click on the canvas to place a ${activeTool}`;
     }
     if (isMoveMode) {
       return "Awaiting new position for the selected shape.";
     }
 
     let message = '';
-    if (isSelectMode) {
+    if (activeTool === 'select') {
       message += 'In Select mode. ';
     }
 
@@ -498,20 +497,38 @@ function DemoFigma() {
     return message;
   };
 
+  const handleToolClick = (tool: 'rectangle' | 'circle' | 'select') => {
+    setActiveTool(prev => {
+      const newTool = prev === tool ? null : tool;
+      if (newTool) {
+        setIsMoveMode(false);
+      }
+      return newTool;
+    });
+  };
+
   return (
     <div className="figma-clone">
       <div className="top-bar">
         {!hideDebugMenu && (
           <div className="menu-section">
-            {/* Placeholder for menu */}
-            <span>Menu</span>
-            <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button onClick={fetchShapes}>Get Data</button>
-              <button onClick={handleResetData}>Reset Data</button>
-              <button onClick={() => console.log('Shapes:', shapes)}>
-                Print Shapes
-              </button>
-            </div>
+            <label>
+              <input
+                type="checkbox"
+                checked={showDebugTools}
+                onChange={e => setShowDebugTools(e.target.checked)}
+              />
+              Enable Debug Tools
+            </label>
+            {showDebugTools && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button onClick={fetchShapes}>Get Data</button>
+                <button onClick={handleResetData}>Reset Data</button>
+                <button onClick={() => console.log('Shapes:', shapes)}>
+                  Print Shapes
+                </button>
+              </div>
+            )}
           </div>
         )}
         <div className="users-section">
@@ -548,16 +565,12 @@ function DemoFigma() {
             <button onClick={() => handlePan(0, -50)}>Pan Down</button>
             <button onClick={() => handlePan(50, 0)}>Pan Left</button>
             <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
+          </div>
+          <div>
+            <span>Selection Tools: </span>
             <button
-              onClick={() => {
-                const newIsSelectMode = !isSelectMode;
-                setIsSelectMode(newIsSelectMode);
-                if (newIsSelectMode) {
-                  setCurrentTool(null);
-                  setIsMoveMode(false);
-                }
-              }}
-              style={{ backgroundColor: isSelectMode ? '#cce5ff' : undefined }}
+              onClick={() => handleToolClick('select')}
+              className={activeTool === 'select' ? 'active' : ''}
             >
               Select Mode
             </button>
@@ -567,28 +580,38 @@ function DemoFigma() {
                   const newIsMoveMode = !isMoveMode;
                   setIsMoveMode(newIsMoveMode);
                   if (newIsMoveMode) {
-                    setCurrentTool(null);
-                    setIsSelectMode(false);
+                    setActiveTool(null);
                   }
                 }
               }}
               disabled={!selectedShapeForCurrentUser}
               title={!selectedShapeForCurrentUser ? "Select a shape to enable move mode" : ""}
-              style={{ backgroundColor: isMoveMode ? '#cce5ff' : undefined }}
+              className={isMoveMode ? 'active' : ''}
             >
               Move Shape
             </button>
           </div>
           <div>
-            <button onClick={() => { setCurrentTool('rectangle'); setIsSelectMode(false); setIsMoveMode(false); }}>Rectangle</button>
-            <button onClick={() => { setCurrentTool('circle'); setIsSelectMode(false); setIsMoveMode(false); }}>Circle</button>
+            <span>Shape Tools: </span>
+            <button
+              onClick={() => handleToolClick('rectangle')}
+              className={activeTool === 'rectangle' ? 'active' : ''}
+            >
+              Rectangle
+            </button>
+            <button
+              onClick={() => handleToolClick('circle')}
+              className={activeTool === 'circle' ? 'active' : ''}
+            >
+              Circle
+            </button>
             <span>{getHintText()}</span>
           </div>
         </div>
       </div>
       <div
         ref={canvasRef}
-        className={`canvas-container ${currentTool || isSelectMode ? 'shape-creation-mode' : ''}`}
+        className={`canvas-container ${activeTool ? 'shape-creation-mode' : ''}`}
         style={{
           '--grid-size': `${50 * zoom}px`,
           '--pan-x': `${pan.x}px`,
