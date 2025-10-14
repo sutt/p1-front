@@ -29,6 +29,11 @@ interface CircleShape extends BaseShape {
 
 type Shape = RectangleShape | CircleShape;
 
+interface UserOnlineResponse {
+  userName: string;
+  created_at: string;
+}
+
 const getRandomSize = () => Math.floor(Math.random() * (300 - 100 + 1)) + 100;
 
 const createShape = (type: ShapeType, x: number, y: number): Shape => {
@@ -64,6 +69,22 @@ const isPointInCircle = (px: number, py: number, circle: CircleShape) => {
   return distance <= circle.radius;
 };
 
+const formatDuration = (createdAt: string) => {
+  const now = new Date();
+  const createdDate = new Date(createdAt);
+  const seconds = Math.floor((now.getTime() - createdDate.getTime()) / 1000);
+
+  if (seconds < 60) {
+    return `Online for ${seconds} second${seconds === 1 ? '' : 's'}`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `Online for ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return `Online for ${hours} hour${hours === 1 ? '' : 's'}`;
+};
+
 function DemoFigma() {
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -78,6 +99,7 @@ function DemoFigma() {
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [hintMessage, setHintMessage] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -199,6 +221,40 @@ function DemoFigma() {
       clearInterval(intervalId);
     };
   }, [fetchShapes]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const postUserHeartbeat = async () => {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      try {
+        const response = await fetch(`${apiUrl}/user_online`, {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userName: currentUser }),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: UserOnlineResponse[] = await response.json();
+        data.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setOnlineUsers(data);
+      } catch (error) {
+        console.error("Error posting user heartbeat:", error);
+      }
+    };
+
+    postUserHeartbeat(); // initial post
+    const pollingInterval = parseInt(import.meta.env.VITE_USER_POLLING_INTERVAL_MS || '5000', 10);
+    const intervalId = setInterval(postUserHeartbeat, pollingInterval);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [currentUser]);
 
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
@@ -430,7 +486,13 @@ function DemoFigma() {
             </>
           )}
           <button onClick={handleSetAnonUser}>Anon User</button>
-          <span>Users Online: (placeholder)</span>
+          <span>
+            Users Online: {onlineUsers.map((user, index) => (
+              <span key={user.userName} title={formatDuration(user.created_at)}>
+                {user.userName}{index < onlineUsers.length - 1 ? ', ' : ''}
+              </span>
+            ))}
+          </span>
         </div>
         <div className="tools-section">
           <div>
