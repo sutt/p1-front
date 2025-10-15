@@ -805,6 +805,7 @@ function DemoFigma() {
           '--grid-size': `${50 * zoom}px`,
           '--pan-x': `${pan.x}px`,
           '--pan-y': `${pan.y}px`,
+          cursor: isMoveMode ? 'pointer' : (draggingShape ? 'grabbing' : undefined),
         } as CSSProperties}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -846,6 +847,7 @@ function DemoFigma() {
                       top: `${shape.y}px`,
                       width: `${shape.width}px`,
                       height: `${shape.height}px`,
+                      cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
                     }}
                   />
                 </Fragment>
@@ -873,6 +875,7 @@ function DemoFigma() {
                       top: `${shape.y - shape.radius}px`,
                       width: `${shape.radius * 2}px`,
                       height: `${shape.radius * 2}px`,
+                      cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
                     }}
                   />
                 </Fragment>
@@ -936,6 +939,7 @@ function DemoFigma() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
                       }}
                       onDoubleClick={() => setEditingShapeId(shape.id)}
                     >
