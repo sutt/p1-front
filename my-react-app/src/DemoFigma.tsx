@@ -269,6 +269,14 @@ function DemoFigma() {
     }
   }, [currentUser]);
 
+  const finishEditing = useCallback(() => {
+    setEditingShapeId(null);
+    setShapes(currentShapes => {
+      updateShapesOnServer(currentShapes);
+      return currentShapes;
+    });
+  }, [updateShapesOnServer]);
+
   const handleSignup = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
@@ -476,6 +484,7 @@ function DemoFigma() {
   };
 
   const handleCanvasClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (editingShapeId) return;
     if (!canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
@@ -833,10 +842,13 @@ function DemoFigma() {
                           s.id === shape.id ? { ...s, text: newText } : s
                         ));
                       }}
-                      onBlur={() => {
-                        setEditingShapeId(null);
-                        updateShapesOnServer(shapes);
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          finishEditing();
+                        }
                       }}
+                      onBlur={finishEditing}
                       autoFocus
                       style={{
                         position: 'absolute',
@@ -853,8 +865,9 @@ function DemoFigma() {
                     />
                   ) : (
                     <div
-                      className={`shape text ${isSelected ? 'selected' : ''}`}
+                      className={`text ${isSelected ? 'selected' : ''}`}
                       style={{
+                        position: 'absolute',
                         left: `${shape.x}px`,
                         top: `${shape.y}px`,
                         width: `${shape.width}px`,
