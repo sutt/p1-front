@@ -125,6 +125,7 @@ function DemoFigma() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [editingShapeId, setEditingShapeId] = useState<string | null>(null);
+  const [draggingShape, setDraggingShape] = useState<{ id: string; startX: number; startY: number; mouseStartX: number; mouseStartY: number; } | null>(null);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -464,6 +465,25 @@ function DemoFigma() {
   };
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (draggingShape && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const canvasX = (mouseX - pan.x) / zoom;
+      const canvasY = (mouseY - pan.y) / zoom;
+
+      const dx = canvasX - draggingShape.mouseStartX;
+      const dy = canvasY - draggingShape.mouseStartY;
+
+      setShapes(prevShapes => prevShapes.map(s => {
+        if (s.id === draggingShape.id) {
+          return { ...s, x: Math.round(draggingShape.startX + dx), y: Math.round(draggingShape.startY + dy) };
+        }
+        return s;
+      }));
+      return;
+    }
+
     if (isPanning) {
       const dx = e.clientX - lastMousePosition.current.x;
       const dy = e.clientY - lastMousePosition.current.y;
@@ -480,11 +500,44 @@ function DemoFigma() {
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
+    if (draggingShape) {
+      const shapeToUpdate = shapes.find(s => s.id === draggingShape.id);
+      if (shapeToUpdate) {
+        updateShapesOnServer([shapeToUpdate]);
+      }
+      setDraggingShape(null);
+    }
+
     if (e.button === 0 || e.button === 1) {
       if (e.button === 0 && isPanning && DEBUG) {
         console.log('Pan stop:', { x: e.clientX, y: e.clientY });
       }
       setIsPanning(false);
+    }
+  };
+
+  const handleShapeMouseDown = (e: MouseEvent, shape: Shape) => {
+    if (activeTool && activeTool !== 'select') return;
+
+    e.stopPropagation();
+
+    if (shape.selectedBy.includes(currentUser)) {
+      e.preventDefault();
+
+      if (!canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const canvasX = (mouseX - pan.x) / zoom;
+      const canvasY = (mouseY - pan.y) / zoom;
+
+      setDraggingShape({
+        id: shape.id,
+        startX: shape.x,
+        startY: shape.y,
+        mouseStartX: canvasX,
+        mouseStartY: canvasY,
+      });
     }
   };
 
@@ -786,6 +839,7 @@ function DemoFigma() {
                     </div>
                   )}
                   <div
+                    onMouseDown={(e) => handleShapeMouseDown(e, shape)}
                     className={`shape rectangle ${isSelected ? 'selected' : ''}`}
                     style={{
                       left: `${shape.x}px`,
@@ -812,6 +866,7 @@ function DemoFigma() {
                     </div>
                   )}
                   <div
+                    onMouseDown={(e) => handleShapeMouseDown(e, shape)}
                     className={`shape circle ${isSelected ? 'selected' : ''}`}
                     style={{
                       left: `${shape.x - shape.radius}px`,
@@ -870,6 +925,7 @@ function DemoFigma() {
                     />
                   ) : (
                     <div
+                      onMouseDown={(e) => handleShapeMouseDown(e, shape)}
                       className={`text ${isSelected ? 'selected' : ''}`}
                       style={{
                         position: 'absolute',
