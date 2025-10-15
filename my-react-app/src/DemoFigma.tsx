@@ -274,13 +274,13 @@ function DemoFigma() {
     }
   }, [currentUser]);
 
-  const finishEditing = useCallback(() => {
+  const finishEditing = useCallback(async () => {
+    // By awaiting the server update before hiding the editor, we prevent a race
+    // condition where a polling fetch could overwrite the local optimistic
+    // text update with stale data from the server.
+    await updateShapesOnServer(shapes);
     setEditingShapeId(null);
-    setShapes(currentShapes => {
-      updateShapesOnServer(currentShapes);
-      return currentShapes;
-    });
-  }, [updateShapesOnServer]);
+  }, [shapes, updateShapesOnServer]);
 
   const handleSignup = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
