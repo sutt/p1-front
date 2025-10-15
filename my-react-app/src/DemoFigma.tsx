@@ -6,7 +6,7 @@ import './DemoFigma.css';
 // Module-wide debug flag
 const DEBUG = false;
 
-type ShapeType = 'rectangle' | 'circle';
+type ShapeType = 'rectangle' | 'circle' | 'text';
 
 interface BaseShape {
   id: string;
@@ -27,7 +27,14 @@ interface CircleShape extends BaseShape {
   radius: number;
 }
 
-type Shape = RectangleShape | CircleShape;
+interface TextShape extends BaseShape {
+  type: 'text';
+  text: string;
+  width: number;
+  height: number;
+}
+
+type Shape = RectangleShape | CircleShape | TextShape;
 
 interface UserOnlineResponse {
   userName: string;
@@ -48,13 +55,24 @@ const createShape = (type: ShapeType, x: number, y: number): Shape => {
       height: getRandomSize(),
       selectedBy: [],
     };
-  } else { // circle
+  } else if (type === 'circle') {
     return {
       id,
       type: 'circle',
       x: Math.round(x),
       y: Math.round(y),
       radius: getRandomSize(),
+      selectedBy: [],
+    };
+  } else { // text
+    return {
+      id,
+      type: 'text',
+      x: Math.round(x),
+      y: Math.round(y),
+      text: 'this is text',
+      width: 200,
+      height: 50,
       selectedBy: [],
     };
   }
@@ -67,6 +85,10 @@ const isPointInRectangle = (px: number, py: number, rect: RectangleShape) => {
 const isPointInCircle = (px: number, py: number, circle: CircleShape) => {
   const distance = Math.sqrt((px - circle.x) ** 2 + (py - circle.y) ** 2);
   return distance <= circle.radius;
+};
+
+const isPointInText = (px: number, py: number, text: TextShape) => {
+  return px >= text.x && px <= text.x + text.width && py >= text.y && py <= text.y + text.height;
 };
 
 const formatDuration = (createdAt: string) => {
@@ -90,7 +112,7 @@ function DemoFigma() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [activeTool, setActiveTool] = useState<'rectangle' | 'circle' | 'select' | null>(null);
+  const [activeTool, setActiveTool] = useState<'rectangle' | 'circle' | 'text' | 'select' | null>(null);
   const [isMoveMode, setIsMoveMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -102,6 +124,7 @@ function DemoFigma() {
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [editingShapeId, setEditingShapeId] = useState<string | null>(null);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -462,7 +485,7 @@ function DemoFigma() {
     const canvasX = (mouseX - pan.x) / zoom;
     const canvasY = (mouseY - pan.y) / zoom;
 
-    if (activeTool === 'rectangle' || activeTool === 'circle') {
+    if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'text') {
       const newShape = createShape(activeTool, canvasX, canvasY);
       setShapes(prevShapes => {
         const newShapes = [...prevShapes, newShape];
@@ -496,8 +519,10 @@ function DemoFigma() {
         let hit = false;
         if (shape.type === 'rectangle') {
           hit = isPointInRectangle(canvasX, canvasY, shape);
-        } else {
+        } else if (shape.type === 'circle') {
           hit = isPointInCircle(canvasX, canvasY, shape);
+        } else if (shape.type === 'text') {
+          hit = isPointInText(canvasX, canvasY, shape);
         }
         if (hit) {
           clickedShape = shape;
@@ -549,7 +574,7 @@ function DemoFigma() {
     if (hintMessage) {
       return hintMessage;
     }
-    if (activeTool === 'rectangle' || activeTool === 'circle') {
+    if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'text') {
       return `Click on the canvas to place a ${activeTool}`;
     }
     if (isMoveMode) {
@@ -570,7 +595,7 @@ function DemoFigma() {
     return message;
   };
 
-  const handleToolClick = (tool: 'rectangle' | 'circle' | 'select') => {
+  const handleToolClick = (tool: 'rectangle' | 'circle' | 'text' | 'select') => {
     setActiveTool(prev => {
       const newTool = prev === tool ? null : tool;
       if (newTool) {
@@ -696,6 +721,12 @@ function DemoFigma() {
             >
               Circle
             </button>
+            <button
+              onClick={() => handleToolClick('text')}
+              className={activeTool === 'text' ? 'active' : ''}
+            >
+              Text
+            </button>
             <span>{getHintText()}</span>
           </div>
         </div>
@@ -775,6 +806,68 @@ function DemoFigma() {
                       height: `${shape.radius * 2}px`,
                     }}
                   />
+                </Fragment>
+              );
+            }
+            if (shape.type === 'text') {
+              const isEditing = editingShapeId === shape.id;
+              return (
+                <Fragment key={shape.id}>
+                  {isSelected && !isEditing && (
+                    <div
+                      className="shape-tooltip"
+                      style={{
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                      }}
+                    >
+                      {shape.selectedBy.join(', ')}
+                    </div>
+                  )}
+                  {isEditing ? (
+                    <textarea
+                      value={shape.text}
+                      onChange={(e) => {
+                        const newText = e.target.value;
+                        setShapes(prevShapes => prevShapes.map(s =>
+                          s.id === shape.id ? { ...s, text: newText } : s
+                        ));
+                      }}
+                      onBlur={() => {
+                        setEditingShapeId(null);
+                        updateShapesOnServer(shapes);
+                      }}
+                      autoFocus
+                      style={{
+                        position: 'absolute',
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                        width: `${shape.width}px`,
+                        height: `${shape.height}px`,
+                        border: '1px solid #007bff',
+                        zIndex: 1000,
+                        font: 'inherit',
+                        padding: '5px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className={`shape text ${isSelected ? 'selected' : ''}`}
+                      style={{
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                        width: `${shape.width}px`,
+                        height: `${shape.height}px`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onDoubleClick={() => setEditingShapeId(shape.id)}
+                    >
+                      {shape.text}
+                    </div>
+                  )}
                 </Fragment>
               );
             }
