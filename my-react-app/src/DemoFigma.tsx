@@ -4,7 +4,7 @@ import './DemoFigma.css';
 
 
 // Module-wide debug flag
-const DEBUG = true;
+const DEBUG = false;
 
 type ShapeType = 'rectangle' | 'circle';
 
