@@ -198,6 +198,11 @@ function DemoFigma() {
             // Existing shape, merge properties.
             const mergedShape = { ...serverShape }; // Start with server version
 
+            // If this shape is being edited, preserve its text content from local state.
+            if (id === editingShapeId && localShape.type === 'text') {
+              (mergedShape as TextShape).text = (localShape as TextShape).text;
+            }
+
             // Preserve current user's selection from local state.
             const isSelectedLocally = localShape.selectedBy.includes(currentUser);
             const otherUsersSelections = serverShape.selectedBy.filter(u => u !== currentUser);
@@ -221,7 +226,7 @@ function DemoFigma() {
     } catch (error) {
       console.error("Error fetching or converting data:", error);
     }
-  }, [currentUser]);
+  }, [currentUser, editingShapeId]);
 
   const updateShapesOnServer = useCallback(async (shapesToUpdate: Shape[]) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
