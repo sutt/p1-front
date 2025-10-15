@@ -599,12 +599,22 @@ function DemoFigma() {
               Enable Debug Tools
             </label>
             {showDebugTools && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button onClick={fetchShapes}>Get Data</button>
-                <button onClick={handleResetData}>Reset Data</button>
-                <button onClick={() => console.log('Shapes:', shapes)}>
-                  Print Shapes
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button onClick={fetchShapes}>Get Data</button>
+                  <button onClick={handleResetData}>Reset Data</button>
+                  <button onClick={() => console.log('Shapes:', shapes)}>
+                    Print Shapes
+                  </button>
+                </div>
+                <div>
+                  <button onClick={handleZoomIn}>Zoom In</button>
+                  <button onClick={handleZoomOut}>Zoom Out</button>
+                  <button onClick={() => handlePan(0, 50)}>Pan Up</button>
+                  <button onClick={() => handlePan(0, -50)}>Pan Down</button>
+                  <button onClick={() => handlePan(50, 0)}>Pan Left</button>
+                  <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
+                </div>
               </div>
             )}
           </div>
@@ -641,6 +651,8 @@ function DemoFigma() {
               {authError && <p style={{ color: 'red' }}>{authError}</p>}
             </div>
           )}
+        </div>
+        <div className="online-users-section">
           <span>
             Users Online: {onlineUsers.map((user, index) => (
               <span key={user.userName} title={formatDuration(user.created_at)}>
@@ -650,14 +662,6 @@ function DemoFigma() {
           </span>
         </div>
         <div className="tools-section">
-          <div>
-            <button onClick={handleZoomIn}>Zoom In</button>
-            <button onClick={handleZoomOut}>Zoom Out</button>
-            <button onClick={() => handlePan(0, 50)}>Pan Up</button>
-            <button onClick={() => handlePan(0, -50)}>Pan Down</button>
-            <button onClick={() => handlePan(50, 0)}>Pan Left</button>
-            <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
-          </div>
           <div>
             <span>Selection Tools: </span>
             <button
