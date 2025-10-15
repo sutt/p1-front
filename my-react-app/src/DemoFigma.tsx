@@ -258,12 +258,7 @@ function DemoFigma() {
         body: JSON.stringify({ username: authUsername, password: authPassword }),
       });
       if (response.ok) {
-        setHintMessage('Signup successful! Please log in.');
-        setTimeout(() => setHintMessage(''), 3000);
-        setShowAuthForm(null);
-        setAuthUsername('');
-        setAuthPassword('');
-        setAuthError('');
+        await handleLogin();
       } else {
         setAuthError("Looks like something went wrong, you can still continue as an Anon user for interacting with the canvas.");
       }
