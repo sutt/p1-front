@@ -126,6 +126,16 @@ function DemoFigma() {
   const [authError, setAuthError] = useState('');
   const [editingShapeId, setEditingShapeId] = useState<string | null>(null);
   const [draggingShape, setDraggingShape] = useState<{ id: string; startX: number; startY: number; mouseStartX: number; mouseStartY: number; } | null>(null);
+  const [resizingState, setResizingState] = useState<{
+    id: string;
+    handle: string;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    mouseStartX: number;
+    mouseStartY: number;
+  } | null>(null);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -213,10 +223,16 @@ function DemoFigma() {
               mergedShape.selectedBy.push(currentUser);
             }
 
-            // If shape is selected by current user, local position is authoritative.
+            // If shape is selected by current user, local geometry is authoritative.
             if (isSelectedLocally) {
               mergedShape.x = localShape.x;
               mergedShape.y = localShape.y;
+              if (localShape.type === 'rectangle' || localShape.type === 'text') {
+                (mergedShape as RectangleShape | TextShape).width = localShape.width;
+                (mergedShape as RectangleShape | TextShape).height = localShape.height;
+              } else if (localShape.type === 'circle') {
+                (mergedShape as CircleShape).radius = localShape.radius;
+              }
             }
             
             mergedShapesMap.set(id, mergedShape);
@@ -344,6 +360,43 @@ function DemoFigma() {
     setCurrentUser(anonUser);
   };
 
+  const handleResizeMouseDown = (e: MouseEvent, shape: Shape, handle: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const canvasX = (mouseX - pan.x) / zoom;
+    const canvasY = (mouseY - pan.y) / zoom;
+
+    let startWidth, startHeight, startX, startY;
+
+    if (shape.type === 'rectangle' || shape.type === 'text') {
+      startWidth = shape.width;
+      startHeight = shape.height;
+      startX = shape.x;
+      startY = shape.y;
+    } else { // circle
+      startWidth = shape.radius * 2;
+      startHeight = shape.radius * 2;
+      startX = shape.x - shape.radius;
+      startY = shape.y - shape.radius;
+    }
+
+    setResizingState({
+      id: shape.id,
+      handle,
+      startX,
+      startY,
+      startWidth,
+      startHeight,
+      mouseStartX: canvasX,
+      mouseStartY: canvasY,
+    });
+  };
+
   const handleResetData = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
@@ -465,6 +518,73 @@ function DemoFigma() {
   };
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (resizingState && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const canvasX = (mouseX - pan.x) / zoom;
+      const canvasY = (mouseY - pan.y) / zoom;
+
+      const dx = canvasX - resizingState.mouseStartX;
+      const dy = canvasY - resizingState.mouseStartY;
+
+      setShapes(prevShapes => prevShapes.map(s => {
+        if (s.id === resizingState.id) {
+          const newShape = { ...s };
+          const { startX, startY, startWidth, startHeight } = resizingState;
+
+          let newX = startX;
+          let newY = startY;
+          let newWidth = startWidth;
+          let newHeight = startHeight;
+
+          if (resizingState.handle.includes('e')) {
+            newWidth = startWidth + dx;
+          }
+          if (resizingState.handle.includes('w')) {
+            newWidth = startWidth - dx;
+            newX = startX + dx;
+          }
+          if (resizingState.handle.includes('s')) {
+            newHeight = startHeight + dy;
+          }
+          if (resizingState.handle.includes('n')) {
+            newHeight = startHeight - dy;
+            newY = startY + dy;
+          }
+
+          // Prevent negative dimensions
+          if (newWidth < 10) {
+            newWidth = 10;
+            if (resizingState.handle.includes('w')) {
+              newX = startX + startWidth - 10;
+            }
+          }
+          if (newHeight < 10) {
+            newHeight = 10;
+            if (resizingState.handle.includes('n')) {
+              newY = startY + startHeight - 10;
+            }
+          }
+
+          if (newShape.type === 'rectangle' || newShape.type === 'text') {
+            newShape.x = Math.round(newX);
+            newShape.y = Math.round(newY);
+            newShape.width = Math.round(newWidth);
+            newShape.height = Math.round(newHeight);
+          } else if (newShape.type === 'circle') {
+            const radius = Math.round(Math.max(newWidth, newHeight) / 2);
+            newShape.radius = radius < 5 ? 5 : radius;
+            newShape.x = Math.round(newX + newWidth / 2);
+            newShape.y = Math.round(newY + newHeight / 2);
+          }
+          return newShape;
+        }
+        return s;
+      }));
+      return;
+    }
+
     if (draggingShape && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -500,6 +620,14 @@ function DemoFigma() {
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
+    if (resizingState) {
+      const shapeToUpdate = shapes.find(s => s.id === resizingState.id);
+      if (shapeToUpdate) {
+        updateShapesOnServer([shapeToUpdate]);
+      }
+      setResizingState(null);
+    }
+
     if (draggingShape) {
       const shapeToUpdate = shapes.find(s => s.id === draggingShape.id);
       if (shapeToUpdate) {
@@ -850,6 +978,25 @@ function DemoFigma() {
                       cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
                     }}
                   />
+                  {shape.selectedBy.includes(currentUser) && (
+                    <div
+                      className="selection-box"
+                      style={{
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                        width: `${shape.width}px`,
+                        height: `${shape.height}px`,
+                      }}
+                    >
+                      {['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(handle => (
+                        <div
+                          key={handle}
+                          className={`resize-handle ${handle}`}
+                          onMouseDown={(e) => handleResizeMouseDown(e, shape, handle)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </Fragment>
               );
             }
@@ -878,6 +1025,25 @@ function DemoFigma() {
                       cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
                     }}
                   />
+                  {shape.selectedBy.includes(currentUser) && (
+                    <div
+                      className="selection-box"
+                      style={{
+                        left: `${shape.x - shape.radius}px`,
+                        top: `${shape.y - shape.radius}px`,
+                        width: `${shape.radius * 2}px`,
+                        height: `${shape.radius * 2}px`,
+                      }}
+                    >
+                      {['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(handle => (
+                        <div
+                          key={handle}
+                          className={`resize-handle ${handle}`}
+                          onMouseDown={(e) => handleResizeMouseDown(e, shape, handle)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </Fragment>
               );
             }
@@ -944,6 +1110,25 @@ function DemoFigma() {
                       onDoubleClick={() => setEditingShapeId(shape.id)}
                     >
                       {shape.text}
+                    </div>
+                  )}
+                  {shape.selectedBy.includes(currentUser) && !isEditing && (
+                    <div
+                      className="selection-box"
+                      style={{
+                        left: `${shape.x}px`,
+                        top: `${shape.y}px`,
+                        width: `${shape.width}px`,
+                        height: `${shape.height}px`,
+                      }}
+                    >
+                      {['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(handle => (
+                        <div
+                          key={handle}
+                          className={`resize-handle ${handle}`}
+                          onMouseDown={(e) => handleResizeMouseDown(e, shape, handle)}
+                        />
+                      ))}
                     </div>
                   )}
                 </Fragment>

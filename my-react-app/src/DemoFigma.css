@@ -116,3 +116,31 @@
   white-space: nowrap;
   pointer-events: none; /* So it doesn't interfere with clicks */
 }
+
+.selection-box {
+  position: absolute;
+  border: 1px dashed #007bff;
+  box-sizing: border-box;
+  pointer-events: none; /* The box itself shouldn't capture events */
+  z-index: 15;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border: 1px solid #007bff;
+  box-sizing: border-box;
+  pointer-events: all; /* But handles should */
+  z-index: 16;
+}
+
+.resize-handle.n { top: -4px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.e { right: -4px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.resize-handle.w { left: -4px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.resize-handle.ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.resize-handle.nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.resize-handle.se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.resize-handle.sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
