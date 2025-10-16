@@ -1070,7 +1070,7 @@ function DemoFigma() {
               <circle cx="10" cy="7" r="3" />
               <path d="M10 11C6 11 3 13 3 15V17H17V15C17 13 14 11 10 11Z" />
             </svg>
-            <span className="online-count" title={onlineUsers.map(u => `${u.userName} (${formatDuration(u.created_at)})`).join('\n')}>
+            <span className="online-count" title={onlineUsers.map(u => u.userName).join('\n')}>
               {onlineUsers.length}
             </span>
             {showOnlineUsers && (
@@ -1079,7 +1079,7 @@ function DemoFigma() {
                 <ul>
                   {onlineUsers.map(user => (
                     <li key={user.userName}>
-                      {user.userName} <span>({formatDuration(user.created_at)})</span>
+                      {user.userName}
                     </li>
                   ))}
                 </ul>
