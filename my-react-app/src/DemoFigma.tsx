@@ -539,7 +539,7 @@ function DemoFigma() {
   const handleResetData = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
-      const response = await fetch(`${apiUrl}/reset_data`, {
+      const response = await fetch(`${apiUrl}/api/reset_data`, {
         method: 'POST',
         mode: 'cors'
       });
@@ -1044,6 +1044,7 @@ function DemoFigma() {
         </div>
 
         <div className="toolbar-right">
+          <button onClick={handleResetData}>Reset Data</button>
           <button
             className="ai-toggle-button"
             onClick={() => setAiWidgetExpanded(!aiWidgetExpanded)}
