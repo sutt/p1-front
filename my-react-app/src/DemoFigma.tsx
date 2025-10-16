@@ -215,12 +215,16 @@ function DemoFigma() {
             }
 
             // Preserve current user's selection from local state.
+            // Rule: Only one user can select a shape.
             const isSelectedLocally = localShape.selectedBy.includes(currentUser);
-            const otherUsersSelections = serverShape.selectedBy.filter(u => u !== currentUser);
             
-            mergedShape.selectedBy = [...otherUsersSelections];
             if (isSelectedLocally) {
-              mergedShape.selectedBy.push(currentUser);
+              // If selected locally by the current user, that takes precedence on this client.
+              mergedShape.selectedBy = [currentUser];
+            } else {
+              // Otherwise, use the server's selection state.
+              // To be safe against legacy data, only take the first user.
+              mergedShape.selectedBy = serverShape.selectedBy.slice(0, 1);
             }
 
             // If shape is selected by current user, local geometry is authoritative.
@@ -726,29 +730,45 @@ function DemoFigma() {
       }
 
       setShapes(prevShapes => {
-        const newShapes = prevShapes.map(shape => {
-          const newSelectedBy = [...shape.selectedBy];
-          const userIndex = newSelectedBy.indexOf(currentUser);
+        // Rule: Only one user can select a shape at a time.
+        const newShapes = [...prevShapes.map(s => ({...s}))]; // cheap deep copy
+        let changed = false;
 
-          if (shape.id === clickedShape?.id) {
-            // This is the clicked shape
-            if (userIndex > -1) {
-              // Already selected by user, so deselect
-              newSelectedBy.splice(userIndex, 1);
-            } else {
-              // Not selected, so select
-              newSelectedBy.push(currentUser);
+        // First, find my current selection
+        const mySelection = newShapes.find(s => s.selectedBy.includes(currentUser));
+
+        if (clickedShape) {
+            const isSelectedByMe = clickedShape.selectedBy.includes(currentUser);
+            const isSelectedByOther = clickedShape.selectedBy.length > 0 && !isSelectedByMe;
+
+            if (isSelectedByMe) {
+                // clicked my selection -> deselect
+                const shape = newShapes.find(s => s.id === clickedShape.id)!;
+                shape.selectedBy = [];
+                changed = true;
+            } else if (!isSelectedByOther) {
+                // clicked available shape -> select it and deselect old one
+                if (mySelection) {
+                    mySelection.selectedBy = [];
+                }
+                const shape = newShapes.find(s => s.id === clickedShape.id)!;
+                shape.selectedBy = [currentUser];
+                changed = true;
             }
-          } else {
-            // This is not the clicked shape, deselect for current user
-            if (userIndex > -1) {
-              newSelectedBy.splice(userIndex, 1);
+            // if isSelectedByOther, do nothing, selection is blocked.
+        } else {
+            // clicked canvas -> deselect
+            if (mySelection) {
+                mySelection.selectedBy = [];
+                changed = true;
             }
-          }
-          return { ...shape, selectedBy: newSelectedBy };
-        });
-        updateShapesOnServer(newShapes);
-        return newShapes;
+        }
+
+        if (changed) {
+            updateShapesOnServer(newShapes);
+            return newShapes;
+        }
+        return prevShapes;
       });
       return;
     }
@@ -953,6 +973,9 @@ function DemoFigma() {
         >
           {shapes.map(shape => {
             const isSelected = shape.selectedBy.length > 0;
+            const isSelectedByMe = shape.selectedBy.includes(currentUser);
+            const isSelectedByOther = isSelected && !isSelectedByMe;
+
             if (shape.type === 'rectangle') {
               return (
                 <Fragment key={shape.id}>
@@ -975,7 +998,7 @@ function DemoFigma() {
                       top: `${shape.y}px`,
                       width: `${shape.width}px`,
                       height: `${shape.height}px`,
-                      cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
+                      cursor: isSelectedByMe ? 'grab' : (isSelectedByOther && activeTool === 'select' ? 'not-allowed' : undefined),
                     }}
                   />
                   {shape.selectedBy.includes(currentUser) && (
@@ -1022,7 +1045,7 @@ function DemoFigma() {
                       top: `${shape.y - shape.radius}px`,
                       width: `${shape.radius * 2}px`,
                       height: `${shape.radius * 2}px`,
-                      cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
+                      cursor: isSelectedByMe ? 'grab' : (isSelectedByOther && activeTool === 'select' ? 'not-allowed' : undefined),
                     }}
                   />
                   {shape.selectedBy.includes(currentUser) && (
@@ -1105,7 +1128,7 @@ function DemoFigma() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        cursor: shape.selectedBy.includes(currentUser) ? 'grab' : undefined,
+                        cursor: isSelectedByMe ? 'grab' : (isSelectedByOther && activeTool === 'select' ? 'not-allowed' : undefined),
                       }}
                       onDoubleClick={() => setEditingShapeId(shape.id)}
                     >
