@@ -301,22 +301,95 @@ function DemoFigma() {
   }, [currentUser]);
 
   const executeAICommands = useCallback((commands: AICommand[]) => {
-    const shapesToAdd: Shape[] = [];
-    for (const cmd of commands) {
-      if (cmd.action === 'createShape') {
-        const { type, x, y } = cmd.params;
-        const newShape = createShape(type as ShapeType, x, y);
-        shapesToAdd.push(newShape);
-      }
-    }
+    setShapes(prevShapes => {
+      let newShapes = [...prevShapes];
+      let changed = false;
 
-    if (shapesToAdd.length > 0) {
-      setShapes(prevShapes => {
-        const newShapes = [...prevShapes, ...shapesToAdd];
+      for (const cmd of commands) {
+        switch (cmd.action) {
+          case 'createShape': {
+            const { type, x, y, width, height, radius, text } = cmd.params;
+            const id = `shape_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            let shapeToAdd: Shape | null = null;
+
+            if (type === 'rectangle') {
+              shapeToAdd = {
+                id, type: 'rectangle', x: Math.round(x), y: Math.round(y),
+                width: width !== undefined ? Math.round(width) : getRandomSize(),
+                height: height !== undefined ? Math.round(height) : getRandomSize(),
+                selectedBy: []
+              };
+            } else if (type === 'circle') {
+              shapeToAdd = {
+                id, type: 'circle', x: Math.round(x), y: Math.round(y),
+                radius: radius !== undefined ? Math.round(radius) : getRandomSize(),
+                selectedBy: []
+              };
+            } else if (type === 'text') {
+              shapeToAdd = {
+                id, type: 'text', x: Math.round(x), y: Math.round(y),
+                text: text || 'this is text',
+                width: width !== undefined ? Math.round(width) : 200,
+                height: height !== undefined ? Math.round(height) : 50,
+                selectedBy: []
+              };
+            }
+
+            if (shapeToAdd) {
+              newShapes.push(shapeToAdd);
+              changed = true;
+            }
+            break;
+          }
+          case 'moveShape': {
+            const { shapeId, x, y } = cmd.params;
+            const shapeIndex = newShapes.findIndex(s => s.id === shapeId);
+            if (shapeIndex !== -1) {
+              newShapes[shapeIndex] = { ...newShapes[shapeIndex], x: Math.round(x), y: Math.round(y) };
+              changed = true;
+            }
+            break;
+          }
+          case 'resizeShape': {
+            const { shapeId, width, height, radius } = cmd.params;
+            const shapeIndex = newShapes.findIndex(s => s.id === shapeId);
+            if (shapeIndex !== -1) {
+              const originalShape = newShapes[shapeIndex];
+              const updatedShape = { ...originalShape };
+              if (originalShape.type === 'rectangle' || originalShape.type === 'text') {
+                if (width !== undefined) (updatedShape as RectangleShape | TextShape).width = Math.round(width);
+                if (height !== undefined) (updatedShape as RectangleShape | TextShape).height = Math.round(height);
+              } else if (originalShape.type === 'circle') {
+                if (radius !== undefined) (updatedShape as CircleShape).radius = Math.round(radius);
+              }
+              newShapes[shapeIndex] = updatedShape;
+              changed = true;
+            }
+            break;
+          }
+          // MANUAL INTERVENTION: The following command handlers are placeholders.
+          // They need to be fully implemented to support all AI capabilities.
+          case 'selectShape': {
+            // This should interact with the selection state.
+            console.warn(`AI command not implemented: ${cmd.action}`, cmd.params);
+            break;
+          }
+          case 'arrangeShapes': {
+            // This requires implementing layout algorithms.
+            console.warn(`AI command not implemented: ${cmd.action}`, cmd.params);
+            break;
+          }
+          default:
+            console.warn(`Unknown AI command: ${cmd.action}`);
+        }
+      }
+
+      if (changed) {
         updateShapesOnServer(newShapes);
         return newShapes;
-      });
-    }
+      }
+      return prevShapes;
+    });
   }, [updateShapesOnServer]);
 
   const handleAIChatSubmit = async (e: FormEvent) => {

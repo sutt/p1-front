@@ -19,37 +19,26 @@ export interface AIResponse {
 }
 
 export const sendAIMessage = async (request: AIRequest): Promise<AIResponse> => {
-  console.log('Sending AI message (mocked):', request.message);
+  // MANUAL INTERVENTION: The VITE_API_URL environment variable should be set in `my-react-app/.env`
+  // e.g. VITE_API_URL=http://127.0.0.1:8000/api
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+  const response = await fetch(`${apiUrl}/ai/chat`, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
 
-  // Mocked response for "add two rectangle to the canvas"
-  if (request.message.toLowerCase().includes('add two rectangle')) {
-    return Promise.resolve({
-      message: "I've added two rectangles to the canvas for you.",
-      commands: [
-        {
-          action: 'createShape',
-          params: {
-            type: 'rectangle',
-            x: 100,
-            y: 100,
-          }
-        },
-        {
-          action: 'createShape',
-          params: {
-            type: 'rectangle',
-            x: 400,
-            y: 100,
-          }
-        }
-      ],
-      reasoning: "User asked to create two rectangles. I've placed them at arbitrary positions."
-    });
+  if (!response.ok) {
+    // Try to parse error response from backend
+    const errorData = await response.json().catch(() => null);
+    if (errorData && errorData.message) {
+      throw new Error(`AI request failed: ${errorData.message}`);
+    }
+    throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
   }
 
-  // Default mock response
-  return Promise.resolve({
-    message: "Sorry, I can only add two rectangles for now.",
-    commands: [],
-  });
+  return await response.json();
 };
