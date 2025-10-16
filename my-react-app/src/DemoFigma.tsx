@@ -136,6 +136,7 @@ function DemoFigma() {
     mouseStartX: number;
     mouseStartY: number;
   } | null>(null);
+  const dragHappened = useRef(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -370,6 +371,7 @@ function DemoFigma() {
   const handleResizeMouseDown = (e: MouseEvent, shape: Shape, handle: string) => {
     e.stopPropagation();
     e.preventDefault();
+    dragHappened.current = false;
 
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -511,6 +513,7 @@ function DemoFigma() {
   }, [handleWheel]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    dragHappened.current = false;
     if (activeTool) return;
 
     // Pan on left mouse button or middle mouse button
@@ -526,6 +529,7 @@ function DemoFigma() {
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (resizingState && canvasRef.current) {
+      dragHappened.current = true;
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -593,6 +597,7 @@ function DemoFigma() {
     }
 
     if (draggingShape && canvasRef.current) {
+      dragHappened.current = true;
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -612,6 +617,7 @@ function DemoFigma() {
     }
 
     if (isPanning) {
+      dragHappened.current = true;
       const dx = e.clientX - lastMousePosition.current.x;
       const dy = e.clientY - lastMousePosition.current.y;
       lastMousePosition.current = { x: e.clientX, y: e.clientY };
@@ -655,6 +661,7 @@ function DemoFigma() {
     if (activeTool && activeTool !== 'select') return;
 
     e.stopPropagation();
+    dragHappened.current = false;
 
     if (shape.selectedBy.includes(currentUser)) {
       e.preventDefault();
@@ -677,6 +684,10 @@ function DemoFigma() {
   };
 
   const handleCanvasClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (dragHappened.current) {
+      dragHappened.current = false;
+      return;
+    }
     if (editingShapeId) return;
     if (!canvasRef.current) return;
 
