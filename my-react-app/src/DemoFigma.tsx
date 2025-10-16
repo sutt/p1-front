@@ -1039,6 +1039,17 @@ function DemoFigma() {
             </svg>
             AI
           </button>
+          {!hideDebugMenu && (
+            <button
+              className="tool-button"
+              onClick={() => setShowDebugTools(!showDebugTools)}
+              title="Toggle Debug Tools"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 3C10.5523 3 11 3.44772 11 4V5.06152C11.5237 5.18719 12.0248 5.38548 12.4904 5.6499L13.5355 4.60482C13.9261 4.2143 14.5592 4.2143 14.9497 4.60482L15.3952 5.05025C15.7857 5.44077 15.7857 6.07394 15.3952 6.46447L14.3501 7.50956C14.6145 7.97521 14.8128 8.47629 14.9385 9H15.9999C16.5522 9 16.9999 9.44772 16.9999 10C16.9999 10.5523 16.5522 11 15.9999 11H14.9385C14.8128 11.5237 14.6145 12.0248 14.3501 12.4904L15.3952 13.5355C15.7857 13.9261 15.7857 14.5592 15.3952 14.9497L14.9497 15.3952C14.5592 15.7857 13.9261 15.7857 13.5355 15.3952L12.4904 14.3501C12.0248 14.6145 11.5237 14.8128 11 14.9385V16C11 16.5523 10.5523 17 10 17C9.44772 17 9 16.5523 9 16V14.9385C8.47629 14.8128 7.97521 14.6145 7.50956 14.3501L6.46447 15.3952C6.07394 15.7857 5.44077 15.7857 5.05025 15.3952L4.60482 14.9497C4.2143 14.5592 4.2143 13.9261 4.60482 13.5355L5.6499 12.4904C5.38548 12.0248 5.18719 11.5237 5.06152 11H4C3.44772 11 3 10.5523 3 10C3 9.44772 3.44772 9 4 9H5.06152C5.18719 8.47629 5.38548 7.97521 5.6499 7.50956L4.60482 6.46447C4.2143 6.07394 4.2143 5.44077 4.60482 5.05025L5.05025 4.60482C5.44077 4.2143 6.07394 4.2143 6.46447 4.60482L7.50956 5.6499C7.97521 5.38548 8.47629 5.18719 9 5.06152V4C9 3.44772 9.44772 3 10 3ZM10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8Z" />
+              </svg>
+            </button>
+          )}
           <div className="online-users-section">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
               <circle cx="10" cy="7" r="3" />
@@ -1123,6 +1134,21 @@ function DemoFigma() {
                 <strong>AI:</strong> {aiMessage}
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {!hideDebugMenu && showDebugTools && (
+        <div className="ai-widget-panel" style={{ bottom: '10px', right: 'auto', left: '10px', top: 'auto' }}>
+          <div className="ai-widget-header">
+            <h3>Debug Tools</h3>
+            <button className="close-button" onClick={() => setShowDebugTools(false)} title="Close">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="ai-widget-content">
+            <button onClick={handleResetData}>Reset Data</button>
           </div>
         </div>
       )}
