@@ -144,3 +144,26 @@
 .resize-handle.nw { top: -4px; left: -4px; cursor: nwse-resize; }
 .resize-handle.se { bottom: -4px; right: -4px; cursor: nwse-resize; }
 .resize-handle.sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+
+.ai-chat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-chat-section form {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.ai-chat-section input {
+  width: 250px;
+  padding: 4px 8px;
+}
+
+.ai-message {
+  margin: 0;
+  font-size: 12px;
+  color: #333;
+}

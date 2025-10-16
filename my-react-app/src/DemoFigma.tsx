@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
-import type { MouseEvent, CSSProperties } from 'react';
+import type { MouseEvent, CSSProperties, FormEvent } from 'react';
 import './DemoFigma.css';
+import { sendAIMessage, type AICommand } from './services/aiService';
 
 
 // Module-wide debug flag
@@ -137,6 +138,9 @@ function DemoFigma() {
     mouseStartY: number;
   } | null>(null);
   const dragHappened = useRef(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiIsLoading, setAiIsLoading] = useState(false);
+  const [aiMessage, setAiMessage] = useState('');
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -295,6 +299,55 @@ function DemoFigma() {
       console.error("Error updating shapes on server:", error);
     }
   }, [currentUser]);
+
+  const executeAICommands = useCallback((commands: AICommand[]) => {
+    const shapesToAdd: Shape[] = [];
+    for (const cmd of commands) {
+      if (cmd.action === 'createShape') {
+        const { type, x, y } = cmd.params;
+        const newShape = createShape(type as ShapeType, x, y);
+        shapesToAdd.push(newShape);
+      }
+    }
+
+    if (shapesToAdd.length > 0) {
+      setShapes(prevShapes => {
+        const newShapes = [...prevShapes, ...shapesToAdd];
+        updateShapesOnServer(newShapes);
+        return newShapes;
+      });
+    }
+  }, [updateShapesOnServer]);
+
+  const handleAIChatSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+
+    setAiIsLoading(true);
+    setAiMessage('');
+
+    try {
+      const response = await sendAIMessage({
+        user: currentUser,
+        message: aiInput,
+        canvasState: {
+          shapes,
+          viewport: { zoom, pan }
+        }
+      });
+
+      setAiMessage(response.message);
+      if (response.commands.length > 0) {
+        executeAICommands(response.commands);
+      }
+    } catch (error) {
+      console.error("AI request failed:", error);
+      setAiMessage("Sorry, something went wrong.");
+    } finally {
+      setAiIsLoading(false);
+      setAiInput('');
+    }
+  };
 
   const finishEditing = useCallback(async () => {
     const shapeToUpdate = shapes.find(s => s.id === editingShapeId);
@@ -957,6 +1010,21 @@ function DemoFigma() {
               Text
             </button>
             <span>{getHintText()}</span>
+          </div>
+          <div className="ai-chat-section">
+            <form onSubmit={handleAIChatSubmit}>
+              <input
+                type="text"
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder="AI: e.g., add two rectangles"
+                disabled={aiIsLoading}
+              />
+              <button type="submit" disabled={aiIsLoading}>
+                {aiIsLoading ? '...' : 'Send'}
+              </button>
+            </form>
+            {aiMessage && <p className="ai-message">{aiMessage}</p>}
           </div>
         </div>
       </div>
