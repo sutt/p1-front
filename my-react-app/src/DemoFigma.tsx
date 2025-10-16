@@ -962,90 +962,21 @@ function DemoFigma() {
     });
   };
 
+  const [aiWidgetExpanded, setAiWidgetExpanded] = useState(false);
+
   return (
     <div className="figma-clone">
       <div className="top-bar">
-        {!hideDebugMenu && (
-          <div className="menu-section">
-            <label>
-              <input
-                type="checkbox"
-                checked={showDebugTools}
-                onChange={e => setShowDebugTools(e.target.checked)}
-              />
-              Enable Debug Tools
-            </label>
-            {showDebugTools && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button onClick={fetchShapes}>Get Data</button>
-                  <button onClick={handleResetData}>Reset Data</button>
-                  <button onClick={() => console.log('Shapes:', shapes)}>
-                    Print Shapes
-                  </button>
-                </div>
-                <div>
-                  <button onClick={handleZoomIn}>Zoom In</button>
-                  <button onClick={handleZoomOut}>Zoom Out</button>
-                  <button onClick={() => handlePan(0, 50)}>Pan Up</button>
-                  <button onClick={() => handlePan(0, -50)}>Pan Down</button>
-                  <button onClick={() => handlePan(50, 0)}>Pan Left</button>
-                  <button onClick={() => handlePan(-50, 0)}>Pan Right</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="users-section">
-          <span>Current User: {currentUser}</span>
-          {currentUser.startsWith('Anon') ? (
-            <>
-              <button onClick={() => { setShowAuthForm('login'); setAuthError(''); }}>Login</button>
-              <button onClick={() => { setShowAuthForm('signup'); setAuthError(''); }}>Signup</button>
-            </>
-          ) : (
-            <button onClick={handleLogout}>Logout</button>
-          )}
-          {showAuthForm && (
-            <div className="auth-form">
-              <h3>{showAuthForm === 'login' ? 'Login' : 'Signup'}</h3>
-              <input
-                type="text"
-                value={authUsername}
-                onChange={(e) => setAuthUsername(e.target.value)}
-                placeholder="Username"
-              />
-              <input
-                type="password"
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                placeholder="Password"
-              />
-              <button onClick={showAuthForm === 'login' ? handleLogin : handleSignup}>
-                {showAuthForm === 'login' ? 'Login' : 'Signup'}
-              </button>
-              <button onClick={() => setShowAuthForm(null)}>Cancel</button>
-              {authError && <p style={{ color: 'red' }}>{authError}</p>}
-            </div>
-          )}
-        </div>
-        <div className="online-users-section">
-          <span>
-            Users Online: {onlineUsers.map((user, index) => (
-              <span key={user.userName} title={formatDuration(user.created_at)}>
-                {user.userName}{index < onlineUsers.length - 1 ? ', ' : ''}
-              </span>
-            ))}
-          </span>
-        </div>
-        <div className="tools-section">
-          <div>
-            <span>Selection Tools: </span>
+        <div className="toolbar-left">
+          <div className="shape-tools">
             <button
               onClick={() => handleToolClick('select')}
-              className={activeTool === 'select' ? 'active' : ''}
+              className={`tool-button ${activeTool === 'select' ? 'active' : ''}`}
+              title="Select Mode (V)"
             >
-              Select Mode
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 3L3 17L8 12L11 17L13 16L10 11L17 11L3 3Z" />
+              </svg>
             </button>
             <button
               onClick={() => {
@@ -1058,55 +989,143 @@ function DemoFigma() {
                 }
               }}
               disabled={!selectedShapeForCurrentUser}
-              title={!selectedShapeForCurrentUser ? "Select a shape to enable move mode" : ""}
-              className={isMoveMode ? 'active' : ''}
+              title={!selectedShapeForCurrentUser ? "Select a shape to enable move mode" : "Move Shape (M)"}
+              className={`tool-button ${isMoveMode ? 'active' : ''}`}
             >
-              Move Shape
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 3L7 6H9V9H6V7L3 10L6 13V11H9V14H7L10 17L13 14H11V11H14V13L17 10L14 7V9H11V6H13L10 3Z" />
+              </svg>
             </button>
-          </div>
-          <div>
-            <span>Shape Tools: </span>
+            <div className="separator"></div>
             <button
               onClick={() => handleToolClick('rectangle')}
-              className={activeTool === 'rectangle' ? 'active' : ''}
+              className={`tool-button ${activeTool === 'rectangle' ? 'active' : ''}`}
+              title="Rectangle (R)"
             >
-              Rectangle
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="4" y="6" width="12" height="8" />
+              </svg>
             </button>
             <button
               onClick={() => handleToolClick('circle')}
-              className={activeTool === 'circle' ? 'active' : ''}
+              className={`tool-button ${activeTool === 'circle' ? 'active' : ''}`}
+              title="Circle (O)"
             >
-              Circle
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="10" cy="10" r="6" />
+              </svg>
             </button>
             <button
               onClick={() => handleToolClick('text')}
-              className={activeTool === 'text' ? 'active' : ''}
+              className={`tool-button ${activeTool === 'text' ? 'active' : ''}`}
+              title="Text (T)"
             >
-              Text
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 4V6H8.5V16H11.5V6H15V4H5Z" />
+              </svg>
             </button>
-            <span>{getHintText()}</span>
           </div>
-          <div className="ai-chat-section">
-            <form onSubmit={handleAIChatSubmit}>
-              <input
-                type="text"
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="AI: e.g., add two rectangles"
-                disabled={aiIsLoading}
-              />
-              <button type="submit" disabled={aiIsLoading}>
-                {aiIsLoading ? '...' : 'Send'}
-              </button>
-              <select value={aiModel} onChange={e => setAiModel(e.target.value)} disabled={aiIsLoading}>
-                <option value="gpt-4o">fast / simple</option>
-                <option value="gpt-5">slow / complex</option>
-              </select>
-            </form>
-            {aiMessage && <p className="ai-message">{aiMessage}</p>}
+          <div className="hint-message">{getHintText()}</div>
+        </div>
+
+        <div className="toolbar-right">
+          <button
+            className="ai-toggle-button"
+            onClick={() => setAiWidgetExpanded(!aiWidgetExpanded)}
+            title="Toggle AI Assistant"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 2C14.42 2 18 5.58 18 10C18 14.42 14.42 18 10 18C8.85 18 7.76 17.73 6.78 17.24L2 18L3.24 14.12C2.48 12.96 2 11.54 2 10C2 5.58 5.58 2 10 2ZM10 4C6.69 4 4 6.69 4 10C4 11.19 4.38 12.3 5.04 13.22L4.5 15.5L6.89 15.07C7.75 15.64 8.83 16 10 16C13.31 16 16 13.31 16 10C16 6.69 13.31 4 10 4ZM8.5 8H11.5V9.5H8.5V8ZM8.5 11H11.5V12.5H8.5V11Z" />
+            </svg>
+            AI
+          </button>
+          <div className="online-users-section">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+              <circle cx="10" cy="7" r="3" />
+              <path d="M10 11C6 11 3 13 3 15V17H17V15C17 13 14 11 10 11Z" />
+            </svg>
+            <span className="online-count" title={onlineUsers.map(u => `${u.userName} (${formatDuration(u.created_at)})`).join('\n')}>
+              {onlineUsers.length}
+            </span>
+          </div>
+          <div className="user-menu">
+            <span className="username">{currentUser}</span>
+            {currentUser.startsWith('Anon') ? (
+              <>
+                <button className="auth-button" onClick={() => { setShowAuthForm('login'); setAuthError(''); }}>Login</button>
+                <button className="auth-button" onClick={() => { setShowAuthForm('signup'); setAuthError(''); }}>Signup</button>
+              </>
+            ) : (
+              <button className="auth-button" onClick={handleLogout}>Logout</button>
+            )}
           </div>
         </div>
       </div>
+
+      {showAuthForm && (
+        <div className="modal-overlay" onClick={() => setShowAuthForm(null)}>
+          <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>{showAuthForm === 'login' ? 'Login' : 'Sign Up'}</h2>
+            <input
+              type="text"
+              value={authUsername}
+              onChange={(e) => setAuthUsername(e.target.value)}
+              placeholder="Username"
+            />
+            <input
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="Password"
+            />
+            <div className="modal-actions">
+              <button className="primary" onClick={showAuthForm === 'login' ? handleLogin : handleSignup}>
+                {showAuthForm === 'login' ? 'Login' : 'Sign Up'}
+              </button>
+              <button className="secondary" onClick={() => setShowAuthForm(null)}>Cancel</button>
+            </div>
+            {authError && <p className="error-message">{authError}</p>}
+          </div>
+        </div>
+      )}
+
+      {aiWidgetExpanded && (
+        <div className="ai-widget-panel">
+          <div className="ai-widget-header">
+            <h3>AI Assistant</h3>
+            <button className="close-button" onClick={() => setAiWidgetExpanded(false)} title="Close">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="ai-widget-content">
+            <form onSubmit={handleAIChatSubmit} className="ai-form">
+              <textarea
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder="Ask AI to create shapes, arrange elements, or modify your design..."
+                disabled={aiIsLoading}
+                rows={3}
+              />
+              <div className="ai-form-actions">
+                <select value={aiModel} onChange={e => setAiModel(e.target.value)} disabled={aiIsLoading}>
+                  <option value="gpt-4o">GPT-4o (Fast)</option>
+                  <option value="gpt-5">GPT-5 (Advanced)</option>
+                </select>
+                <button type="submit" disabled={aiIsLoading} className="send-button">
+                  {aiIsLoading ? 'Thinking...' : 'Send'}
+                </button>
+              </div>
+            </form>
+            {aiMessage && (
+              <div className="ai-response">
+                <strong>AI:</strong> {aiMessage}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div
         ref={canvasRef}
         className={`canvas-container ${activeTool ? 'shape-creation-mode' : ''}`}
