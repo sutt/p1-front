@@ -117,6 +117,7 @@ function DemoFigma() {
   const [isMoveMode, setIsMoveMode] = useState(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  const onlineUsersRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState('');
   const [hintMessage, setHintMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
@@ -142,6 +143,7 @@ function DemoFigma() {
   const [aiIsLoading, setAiIsLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
   const [aiModel, setAiModel] = useState('gpt-4o');
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -602,6 +604,19 @@ function DemoFigma() {
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
+      if (onlineUsersRef.current && !onlineUsersRef.current.contains(event.target as Node)) {
+        setShowOnlineUsers(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
     const zoomFactor = 1.1;
@@ -1050,7 +1065,7 @@ function DemoFigma() {
               </svg>
             </button>
           )}
-          <div className="online-users-section">
+          <div ref={onlineUsersRef} className="online-users-section" onClick={() => setShowOnlineUsers(prev => !prev)}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
               <circle cx="10" cy="7" r="3" />
               <path d="M10 11C6 11 3 13 3 15V17H17V15C17 13 14 11 10 11Z" />
@@ -1058,6 +1073,18 @@ function DemoFigma() {
             <span className="online-count" title={onlineUsers.map(u => `${u.userName} (${formatDuration(u.created_at)})`).join('\n')}>
               {onlineUsers.length}
             </span>
+            {showOnlineUsers && (
+              <div className="online-users-widget">
+                <h3>Online Users</h3>
+                <ul>
+                  {onlineUsers.map(user => (
+                    <li key={user.userName}>
+                      {user.userName} <span>({formatDuration(user.created_at)})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="user-menu">
             <span className="username">{currentUser}</span>
