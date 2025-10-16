@@ -141,6 +141,7 @@ function DemoFigma() {
   const [aiInput, setAiInput] = useState('');
   const [aiIsLoading, setAiIsLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
+  const [aiModel, setAiModel] = useState('gpt-4o');
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -406,7 +407,8 @@ function DemoFigma() {
         canvasState: {
           shapes,
           viewport: { zoom, pan }
-        }
+        },
+        model: aiModel,
       });
 
       setAiMessage(response.message);
@@ -1096,6 +1098,10 @@ function DemoFigma() {
               <button type="submit" disabled={aiIsLoading}>
                 {aiIsLoading ? '...' : 'Send'}
               </button>
+              <select value={aiModel} onChange={e => setAiModel(e.target.value)} disabled={aiIsLoading}>
+                <option value="gpt-4o">fast / simple</option>
+                <option value="gpt-5">slow / complex</option>
+              </select>
             </form>
             {aiMessage && <p className="ai-message">{aiMessage}</p>}
           </div>

@@ -10,6 +10,7 @@ export interface AIRequest {
     shapes: any[]; // Using any to avoid type duplication for this PoC
     viewport: { zoom: number; pan: { x: number; y: number } };
   };
+  model?: string;
 }
 
 export interface AIResponse {
