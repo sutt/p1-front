@@ -296,12 +296,15 @@ function DemoFigma() {
   }, [currentUser]);
 
   const finishEditing = useCallback(async () => {
-    // By awaiting the server update before hiding the editor, we prevent a race
-    // condition where a polling fetch could overwrite the local optimistic
-    // text update with stale data from the server.
-    await updateShapesOnServer(shapes);
+    const shapeToUpdate = shapes.find(s => s.id === editingShapeId);
+    if (shapeToUpdate) {
+      // By awaiting the server update before hiding the editor, we prevent a race
+      // condition where a polling fetch could overwrite the local optimistic
+      // text update with stale data from the server.
+      await updateShapesOnServer([shapeToUpdate]);
+    }
     setEditingShapeId(null);
-  }, [shapes, updateShapesOnServer]);
+  }, [shapes, updateShapesOnServer, editingShapeId]);
 
   const handleSignup = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
@@ -696,13 +699,13 @@ function DemoFigma() {
 
     if (isMoveMode && selectedShapeForCurrentUser) {
       setShapes(prevShapes => {
-        const newShapes = prevShapes.map(shape =>
-          shape.id === selectedShapeForCurrentUser.id
-            ? { ...shape, x: Math.round(canvasX), y: Math.round(canvasY) }
-            : shape
-        );
-        updateShapesOnServer(newShapes);
-        return newShapes;
+        const shapeToMove = prevShapes.find(s => s.id === selectedShapeForCurrentUser.id);
+        if (!shapeToMove) return prevShapes;
+
+        const movedShape = { ...shapeToMove, x: Math.round(canvasX), y: Math.round(canvasY) };
+        updateShapesOnServer([movedShape]);
+
+        return prevShapes.map(s => s.id === movedShape.id ? movedShape : s);
       });
       setIsMoveMode(false);
       setHintMessage('Shape moved. Move-shape mode is deactivated.');
@@ -1130,7 +1133,7 @@ function DemoFigma() {
                         justifyContent: 'center',
                         cursor: isSelectedByMe ? 'grab' : (isSelectedByOther && activeTool === 'select' ? 'not-allowed' : undefined),
                       }}
-                      onDoubleClick={() => setEditingShapeId(shape.id)}
+                      onDoubleClick={() => !isSelectedByOther && setEditingShapeId(shape.id)}
                     >
                       {shape.text}
                     </div>
