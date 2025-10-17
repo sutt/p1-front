@@ -1068,7 +1068,6 @@ function DemoFigma() {
         </div>
 
         <div className="toolbar-right">
-          <button onClick={handleResetData}>Reset Data</button>
           <button
             className="tool-button"
             onClick={() => setShowHelp(true)}
