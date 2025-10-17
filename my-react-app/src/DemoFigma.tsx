@@ -753,9 +753,10 @@ function DemoFigma() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-74.5, 40],
-      zoom: 9,
+      // style: 'mapbox://styles/mapbox/streets-v12',
+      style: 'mapbox://styles/wsutton17/cmgva32ja008401qo841fa41q',
+      center: [-71.0801725062002, 42.35212399526381],
+      zoom: 13,
       interactive: false,
     });
     baseMapZoomRef.current = mapRef.current.getZoom();
