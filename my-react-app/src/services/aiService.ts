@@ -23,12 +23,23 @@ export const sendAIMessage = async (request: AIRequest): Promise<AIResponse> => 
   // MANUAL INTERVENTION: The VITE_API_URL environment variable should be set in `my-react-app/.env`
   // e.g. VITE_API_URL=http://127.0.0.1:8000/api
   const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+  // Get JWT token from localStorage
+  const token = localStorage.getItem('jwt_token');
+
+  // Build headers with JWT if available
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${apiUrl}/ai/chat`, {
     method: 'POST',
     mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(request),
   });
 
