@@ -1,0 +1,1 @@
+after the signup return succesfully, perform a log-in so that user signed up automatically becomes logged in

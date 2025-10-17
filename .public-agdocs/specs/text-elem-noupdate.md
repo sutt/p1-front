@@ -1,0 +1,2 @@
+Fix the following bug:
+- when the text element is being edited, when there is an update from fetchShapes(), the user's in-flight edits get overwritten. Prevent this from happening, e.g. by not updating the text property when the text element is being edited.

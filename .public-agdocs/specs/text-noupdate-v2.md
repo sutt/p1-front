@@ -1,0 +1,1 @@
+Fix the following bug on the text editing action: When the user edits the text and hits enter to accept his edit, the change is able to sync with the server. The problem is the local state of the user who edited the text first gets a stale state of the text as the previous value. Make it so that the new text immediately appears in the local state of the user who edited the text.

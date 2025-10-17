@@ -1,0 +1,1 @@
+add a widget to display the user who are online if you click on the active tab

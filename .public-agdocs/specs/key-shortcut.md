@@ -1,0 +1,3 @@
+- add keyboard shortcut functionality that are lised on the tools menu, e.g. "T" for text, add a shortcut for exiting any mode that is activated to get into pan mode.
+- add a widget to display a pop up help explaining those shortcuts and how to use them
+    - also list a reminder that you need to select a shape to move/modify it

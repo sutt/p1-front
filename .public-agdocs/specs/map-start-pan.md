@@ -1,0 +1,1 @@
+sync the panning of the canvas to panning the around the mapbox map

@@ -48,13 +48,14 @@ EXEC_CMD_DEFAULT: maider.sh
 # AGENT_TYPE: aider
 
 # Agent-specific configuration.
-# AGENT_CONFIG:
+AGENT_CONFIG:
 #   aider:
 #     task_file_arg_template: ["-f", "{task_file}"]
 #     args: ["--yes", "--no-check-update", "--no-attribute-author", "--no-attribute-committer", "--no-attribute-co-authored-by"]
-#   claude:
-#     task_file_arg_template: null
-#     args: ["-d", "--allowedTools", "Write Edit MultiEdit", "--max-turns", "30", "-p"]
+  claude:
+    task_file_arg_template: null
+    # args: ["-d", "--allowedTools", "Write Edit MultiEdit", "--max-turns", "30", "-p"]
+    args: ["-d", "--allowedTools", "WebFetch WebSearch Write Edit MultiEdit", "--max-turns", "100", "-p"]
 #   gemini:
 #     task_file_arg_template: null
 #     args: ["-y"]
