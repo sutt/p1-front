@@ -106,6 +106,7 @@ function DemoFigma() {
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const onlineUsersRef = useRef<HTMLDivElement>(null);
+  const mapWidgetRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState('');
   const [hintMessage, setHintMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
@@ -134,6 +135,8 @@ function DemoFigma() {
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [showMapWidget, setShowMapWidget] = useState(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -613,6 +616,19 @@ function DemoFigma() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
+      if (mapWidgetRef.current && !mapWidgetRef.current.contains(event.target as Node)) {
+        setShowMapWidget(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleToolClick = useCallback((tool: 'rectangle' | 'circle' | 'text' | 'select') => {
     setActiveTool(prev => {
       const newTool = prev === tool ? null : tool;
@@ -716,6 +732,16 @@ function DemoFigma() {
   }, [handleWheel]);
 
   useEffect(() => {
+    if (!showMap) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      return;
+    }
+
+    if (mapRef.current || !mapContainerRef.current) return;
+
     // MANUAL INTERVENTION: You need to add your Mapbox access token to your .env file.
     // Create a .env file in the my-react-app directory and add:
     // VITE_MAPBOX_TOKEN=your_token_here
@@ -724,8 +750,6 @@ function DemoFigma() {
       return;
     }
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
-    if (mapRef.current || !mapContainerRef.current) return; // initialize map only once
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -739,7 +763,7 @@ function DemoFigma() {
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
     // synchronizing the map's viewport with the canvas's zoom state.
-  }, []);
+  }, [showMap]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     dragHappened.current = false;
@@ -1127,6 +1151,15 @@ function DemoFigma() {
             </svg>
           </button>
           <button
+            className="tool-button"
+            onClick={() => setShowMapWidget(true)}
+            title="Map Settings"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 2C6.13 2 3 5.13 3 9C3 13.5 10 18 10 18C10 18 17 13.5 17 9C17 5.13 13.87 2 10 2ZM10 11.5C8.62 11.5 7.5 10.38 7.5 9C7.5 7.62 8.62 6.5 10 6.5C11.38 6.5 12.5 7.62 12.5 9C12.5 10.38 11.38 11.5 10 11.5Z" />
+            </svg>
+          </button>
+          <button
             className="ai-toggle-button"
             onClick={() => {
               if (isAuthenticated) {
@@ -1234,6 +1267,32 @@ function DemoFigma() {
         </div>
       )}
 
+      {showMapWidget && (
+        <div className="map-widget-panel" ref={mapWidgetRef}>
+          <div className="map-widget-header">
+            <h3>Map Settings</h3>
+            <button className="close-button" onClick={() => setShowMapWidget(false)} title="Close">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="map-widget-content">
+            <div className="map-toggle">
+              <label>Show Map Background</label>
+              <button
+                role="switch"
+                aria-checked={showMap}
+                onClick={() => setShowMap(!showMap)}
+                className={`switch ${showMap ? 'on' : 'off'}`}
+              >
+                <span className="slider"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {aiWidgetExpanded && isAuthenticated && (
         <div className="ai-widget-panel">
           <div className="ai-widget-header">
@@ -1302,7 +1361,7 @@ function DemoFigma() {
         onClick={handleCanvasClick}
         onContextMenu={(e) => e.preventDefault()} // prevent context menu on right click
       >
-        <div ref={mapContainerRef} className="map-container" />
+        {showMap && <div ref={mapContainerRef} className="map-container" />}
         <div
           className="canvas-content"
           style={{
