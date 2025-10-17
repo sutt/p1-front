@@ -92,22 +92,6 @@ const isPointInText = (px: number, py: number, text: TextShape) => {
   return px >= text.x && px <= text.x + text.width && py >= text.y && py <= text.y + text.height;
 };
 
-const formatDuration = (createdAt: string) => {
-  const now = new Date();
-  const createdDate = new Date(createdAt);
-  const seconds = Math.floor((now.getTime() - createdDate.getTime()) / 1000);
-
-  if (seconds < 60) {
-    return `Online for ${seconds} second${seconds === 1 ? '' : 's'}`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `Online for ${minutes} minute${minutes === 1 ? '' : 's'}`;
-  }
-  const hours = Math.floor(minutes / 60);
-  return `Online for ${hours} hour${hours === 1 ? '' : 's'}`;
-};
-
 function DemoFigma() {
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -305,7 +289,7 @@ function DemoFigma() {
 
   const executeAICommands = useCallback((commands: AICommand[]) => {
     setShapes(prevShapes => {
-      let newShapes = [...prevShapes];
+      const newShapes = [...prevShapes];
       let changed = false;
 
       for (const cmd of commands) {
@@ -933,13 +917,6 @@ function DemoFigma() {
     if (DEBUG) {
       console.log(`Canvas Coords: (${canvasX.toFixed(2)}, ${canvasY.toFixed(2)})`);
     }
-  };
-
-  const handleZoomIn = () => setZoom(z => z * 1.2);
-  const handleZoomOut = () => setZoom(z => z / 1.2);
-
-  const handlePan = (dx: number, dy: number) => {
-    setPan(prevPan => ({ x: prevPan.x + dx, y: prevPan.y + dy }));
   };
 
   const getHintText = () => {
