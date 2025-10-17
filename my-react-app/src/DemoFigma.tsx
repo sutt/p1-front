@@ -128,6 +128,7 @@ function DemoFigma() {
   const [aiMessage, setAiMessage] = useState('');
   const [aiModel, setAiModel] = useState('gpt-4o');
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -601,6 +602,62 @@ function DemoFigma() {
     };
   }, []);
 
+  const handleToolClick = useCallback((tool: 'rectangle' | 'circle' | 'text' | 'select') => {
+    setActiveTool(prev => {
+      const newTool = prev === tool ? null : tool;
+      if (newTool) {
+        setIsMoveMode(false);
+      }
+      return newTool;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input, textarea, the auth modal is open, or editing a shape
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || showAuthForm || editingShapeId) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'v':
+          handleToolClick('select');
+          break;
+        case 'r':
+          handleToolClick('rectangle');
+          break;
+        case 'o':
+          handleToolClick('circle');
+          break;
+        case 't':
+          handleToolClick('text');
+          break;
+        case 'm':
+          if (selectedShapeForCurrentUser) {
+            const newIsMoveMode = !isMoveMode;
+            setIsMoveMode(newIsMoveMode);
+            if (newIsMoveMode) {
+              setActiveTool(null);
+            }
+          }
+          break;
+        case 'escape':
+          setActiveTool(null);
+          setIsMoveMode(false);
+          setHintMessage('Exited current mode.');
+          setTimeout(() => setHintMessage(''), 2000);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showAuthForm, editingShapeId, selectedShapeForCurrentUser, isMoveMode, handleToolClick]);
+
   const handleWheel = useCallback((e: globalThis.WheelEvent) => {
     e.preventDefault();
     const zoomFactor = 1.1;
@@ -944,16 +1001,6 @@ function DemoFigma() {
     return message;
   };
 
-  const handleToolClick = (tool: 'rectangle' | 'circle' | 'text' | 'select') => {
-    setActiveTool(prev => {
-      const newTool = prev === tool ? null : tool;
-      if (newTool) {
-        setIsMoveMode(false);
-      }
-      return newTool;
-    });
-  };
-
   const [aiWidgetExpanded, setAiWidgetExpanded] = useState(false);
 
   return (
@@ -1022,6 +1069,15 @@ function DemoFigma() {
 
         <div className="toolbar-right">
           <button onClick={handleResetData}>Reset Data</button>
+          <button
+            className="tool-button"
+            onClick={() => setShowHelp(true)}
+            title="Help & Shortcuts (?)"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5.002a1 1 0 012 0v.002a1 1 0 11-2 0v-.002zM9 6a1 1 0 011-1h.01a1 1 0 010 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+            </svg>
+          </button>
           <button
             className="ai-toggle-button"
             onClick={() => setAiWidgetExpanded(!aiWidgetExpanded)}
@@ -1101,6 +1157,26 @@ function DemoFigma() {
               <button className="secondary" onClick={() => setShowAuthForm(null)}>Cancel</button>
             </div>
             {authError && <p className="error-message">{authError}</p>}
+          </div>
+        </div>
+      )}
+
+      {showHelp && (
+        <div className="modal-overlay" onClick={() => setShowHelp(false)}>
+          <div className="help-widget" onClick={(e) => e.stopPropagation()}>
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+              <li><span>V</span> - Select Tool</li>
+              <li><span>R</span> - Rectangle Tool</li>
+              <li><span>O</span> - Circle Tool</li>
+              <li><span>T</span> - Text Tool</li>
+              <li><span>M</span> - Move Selected Shape</li>
+              <li><span>Esc</span> - Exit current tool/mode</li>
+            </ul>
+            <div className="help-reminder">
+              <strong>Reminder:</strong> You must select a shape before you can move or resize it.
+            </div>
+            <button onClick={() => setShowHelp(false)}>Got it</button>
           </div>
         </div>
       )}
