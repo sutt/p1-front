@@ -231,6 +231,14 @@
   cursor: grabbing;
 }
 
+.map-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .canvas-container.shape-creation-mode {
   cursor: crosshair;
 }

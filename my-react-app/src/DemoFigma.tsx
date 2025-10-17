@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import type { MouseEvent, CSSProperties, FormEvent } from 'react';
+import mapboxgl from 'mapbox-gl';
 import './DemoFigma.css';
 import { sendAIMessage, type AICommand } from './services/aiService';
 
@@ -93,6 +94,8 @@ const isPointInText = (px: number, py: number, text: TextShape) => {
 };
 
 function DemoFigma() {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -703,6 +706,31 @@ function DemoFigma() {
     }
   }, [handleWheel]);
 
+  useEffect(() => {
+    // MANUAL INTERVENTION: You need to add your Mapbox access token to your .env file.
+    // Create a .env file in the my-react-app directory and add:
+    // VITE_MAPBOX_TOKEN=your_token_here
+    if (!import.meta.env.VITE_MAPBOX_TOKEN) {
+      console.error('Mapbox token is not set.');
+      return;
+    }
+    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+    if (mapRef.current || !mapContainerRef.current) return; // initialize map only once
+
+    mapRef.current = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-74.5, 40],
+      zoom: 9,
+      interactive: false,
+    });
+
+    // MANUAL INTERVENTION: This is a proof-of-concept. The map is currently a static background
+    // and does not pan or zoom with the canvas content. A more advanced implementation
+    // would require synchronizing the map's viewport with the canvas's pan and zoom state.
+  }, []);
+
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     dragHappened.current = false;
     if (activeTool) return;
@@ -1260,6 +1288,7 @@ function DemoFigma() {
         onClick={handleCanvasClick}
         onContextMenu={(e) => e.preventDefault()} // prevent context menu on right click
       >
+        <div ref={mapContainerRef} className="map-container" />
         <div
           className="canvas-content"
           style={{
