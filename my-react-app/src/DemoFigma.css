@@ -108,9 +108,16 @@
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
-.ai-toggle-button:hover {
+.ai-toggle-button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
+.ai-toggle-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #555 0%, #666 100%);
+  box-shadow: none;
 }
 
 .online-users-section {

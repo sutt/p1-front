@@ -129,6 +129,7 @@ function DemoFigma() {
   const [aiModel, setAiModel] = useState('gpt-4o');
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -147,22 +148,26 @@ function DemoFigma() {
           if (response.ok) {
             const user = await response.json();
             setCurrentUser(user.username);
+            setIsAuthenticated(true);
           } else {
             localStorage.removeItem('jwt_token');
             setHintMessage('Your session expired. Please sign in again.');
             setTimeout(() => setHintMessage(''), 3000);
             const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
             setCurrentUser(anonUser);
+            setIsAuthenticated(false);
           }
         } catch (error) {
           console.error("Error verifying token:", error);
           localStorage.removeItem('jwt_token');
           const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
           setCurrentUser(anonUser);
+          setIsAuthenticated(false);
         }
       } else {
         const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
         setCurrentUser(anonUser);
+        setIsAuthenticated(false);
       }
     };
     checkAuth();
@@ -464,6 +469,7 @@ function DemoFigma() {
         const data = await response.json();
         localStorage.setItem('jwt_token', data.access_token);
         setCurrentUser(authUsername);
+        setIsAuthenticated(true);
         setShowAuthForm(null);
         setAuthUsername('');
         setAuthPassword('');
@@ -481,6 +487,7 @@ function DemoFigma() {
     localStorage.removeItem('jwt_token');
     const anonUser = `Anon${Math.floor(1000 + Math.random() * 9000)}`;
     setCurrentUser(anonUser);
+    setIsAuthenticated(false);
   };
 
   const handleResizeMouseDown = (e: MouseEvent, shape: Shape, handle: string) => {
@@ -1079,8 +1086,13 @@ function DemoFigma() {
           </button>
           <button
             className="ai-toggle-button"
-            onClick={() => setAiWidgetExpanded(!aiWidgetExpanded)}
-            title="Toggle AI Assistant"
+            onClick={() => {
+              if (isAuthenticated) {
+                setAiWidgetExpanded(!aiWidgetExpanded);
+              }
+            }}
+            disabled={!isAuthenticated}
+            title={!isAuthenticated ? "Please login to use AI Assistant" : "Toggle AI Assistant"}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10 2C14.42 2 18 5.58 18 10C18 14.42 14.42 18 10 18C8.85 18 7.76 17.73 6.78 17.24L2 18L3.24 14.12C2.48 12.96 2 11.54 2 10C2 5.58 5.58 2 10 2ZM10 4C6.69 4 4 6.69 4 10C4 11.19 4.38 12.3 5.04 13.22L4.5 15.5L6.89 15.07C7.75 15.64 8.83 16 10 16C13.31 16 16 13.31 16 10C16 6.69 13.31 4 10 4ZM8.5 8H11.5V9.5H8.5V8ZM8.5 11H11.5V12.5H8.5V11Z" />
@@ -1121,7 +1133,7 @@ function DemoFigma() {
           </div>
           <div className="user-menu">
             <span className="username">{currentUser}</span>
-            {currentUser.startsWith('Anon') ? (
+            {!isAuthenticated ? (
               <>
                 <button className="auth-button" onClick={() => { setShowAuthForm('login'); setAuthError(''); }}>Login</button>
                 <button className="auth-button" onClick={() => { setShowAuthForm('signup'); setAuthError(''); }}>Signup</button>
@@ -1180,7 +1192,7 @@ function DemoFigma() {
         </div>
       )}
 
-      {aiWidgetExpanded && (
+      {aiWidgetExpanded && isAuthenticated && (
         <div className="ai-widget-panel">
           <div className="ai-widget-header">
             <h3>AI Assistant</h3>
