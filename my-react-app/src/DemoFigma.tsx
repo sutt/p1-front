@@ -137,6 +137,10 @@ function DemoFigma() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [showMapWidget, setShowMapWidget] = useState(false);
+  const [showCoordsWidget, setShowCoordsWidget] = useState(false);
+  const [canvasCoords, setCanvasCoords] = useState({ x: 0, y: 0 });
+  const [mapCoords, setMapCoords] = useState({ lng: 0, lat: 0 });
+  const [currentMapZoom, setCurrentMapZoom] = useState(0);
 
   const hideDebugMenu = import.meta.env.VITE_HIDE_DEBUG_MENU === 'true';
 
@@ -711,6 +715,7 @@ function DemoFigma() {
             const base = baseMapZoomRef.current ?? mapRef.current.getZoom();
             baseMapZoomRef.current = base;
             const targetMapZoom = base + Math.log2(newZoom);
+            setCurrentMapZoom(targetMapZoom);
             const around = mapRef.current.unproject([mouseX, mouseY] as [number, number]);
             mapRef.current.easeTo({ zoom: targetMapZoom, around, duration: 0 });
         }
@@ -759,7 +764,9 @@ function DemoFigma() {
       zoom: 13,
       interactive: false,
     });
-    baseMapZoomRef.current = mapRef.current.getZoom();
+    const initialZoom = mapRef.current.getZoom();
+    baseMapZoomRef.current = initialZoom;
+    setCurrentMapZoom(initialZoom);
 
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
@@ -782,6 +789,21 @@ function DemoFigma() {
   };
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (showCoordsWidget && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const canvasX = (mouseX - pan.x) / zoom;
+      const canvasY = (mouseY - pan.y) / zoom;
+      setCanvasCoords({ x: canvasX, y: canvasY });
+
+      if (showMap && mapRef.current) {
+        const { lng, lat } = mapRef.current.unproject([mouseX, mouseY]);
+        setMapCoords({ lng, lat });
+        setCurrentMapZoom(mapRef.current.getZoom());
+      }
+    }
+
     if (resizingState && canvasRef.current) {
       dragHappened.current = true;
       const rect = canvasRef.current.getBoundingClientRect();
@@ -1290,6 +1312,17 @@ function DemoFigma() {
                 <span className="slider"></span>
               </button>
             </div>
+            <div className="map-toggle">
+              <label>Show Coordinates</label>
+              <button
+                role="switch"
+                aria-checked={showCoordsWidget}
+                onClick={() => setShowCoordsWidget(!showCoordsWidget)}
+                className={`switch ${showCoordsWidget ? 'on' : 'off'}`}
+              >
+                <span className="slider"></span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1562,6 +1595,24 @@ function DemoFigma() {
           })}
         </div>
       </div>
+      {showCoordsWidget && (
+        <div className="coords-widget">
+          <div className="coords-section">
+            <strong>Canvas</strong>
+            <span>X: {canvasCoords.x.toFixed(2)}</span>
+            <span>Y: {canvasCoords.y.toFixed(2)}</span>
+            <span>Zoom: {zoom.toFixed(2)}</span>
+          </div>
+          {showMap && mapRef.current && (
+            <div className="coords-section">
+              <strong>Map</strong>
+              <span>Lng: {mapCoords.lng.toFixed(4)}</span>
+              <span>Lat: {mapCoords.lat.toFixed(4)}</span>
+              <span>Zoom: {currentMapZoom.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
