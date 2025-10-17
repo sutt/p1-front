@@ -96,6 +96,7 @@ const isPointInText = (px: number, py: number, text: TextShape) => {
 function DemoFigma() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const baseMapZoomRef = useRef<number | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -690,6 +691,14 @@ function DemoFigma() {
         setZoom(newZoom);
         setPan({ x: newPanX, y: newPanY });
 
+        if (mapRef.current) {
+            const base = baseMapZoomRef.current ?? mapRef.current.getZoom();
+            baseMapZoomRef.current = base;
+            const targetMapZoom = base + Math.log2(newZoom);
+            const around = mapRef.current.unproject([mouseX, mouseY] as [number, number]);
+            mapRef.current.easeTo({ zoom: targetMapZoom, around, duration: 0 });
+        }
+
         if (DEBUG) {
             console.log('Zoom state:', { zoom: newZoom, pan: {x: newPanX, y: newPanY} });
         }
@@ -725,6 +734,7 @@ function DemoFigma() {
       zoom: 9,
       interactive: false,
     });
+    baseMapZoomRef.current = mapRef.current.getZoom();
 
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
