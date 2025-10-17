@@ -726,9 +726,9 @@ function DemoFigma() {
       interactive: false,
     });
 
-    // MANUAL INTERVENTION: This is a proof-of-concept. The map is currently a static background
-    // and does not pan or zoom with the canvas content. A more advanced implementation
-    // would require synchronizing the map's viewport with the canvas's pan and zoom state.
+    // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
+    // but does not zoom with it. A more advanced implementation would require
+    // synchronizing the map's viewport with the canvas's zoom state.
   }, []);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
@@ -840,6 +840,10 @@ function DemoFigma() {
       const dx = e.clientX - lastMousePosition.current.x;
       const dy = e.clientY - lastMousePosition.current.y;
       lastMousePosition.current = { x: e.clientX, y: e.clientY };
+
+      if (mapRef.current) {
+        mapRef.current.panBy([-dx, -dy], { duration: 0 });
+      }
       
       setPan(prevPan => {
         const newPan = { x: prevPan.x + dx, y: prevPan.y + dy };
