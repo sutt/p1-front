@@ -1,10 +1,12 @@
 # GauntletAI - P1 | Milestone1 | DevLog
 
-_Will Sutton | October 14, 2025_
+_Will Sutton | October 17, 2025_
 
 **Deployed here:** https://gauntlet.lightningcloud.dev/canvas
 
-**Initial Video here:** https://www.youtube.com/watch?v=iOHIRxB-qNA
+**Milestone2 Video here:** https://www.youtube.com/watch?v=YdiLi4gJq94
+
+**Milestone1 Video here:** https://www.youtube.com/watch?v=iOHIRxB-qNA
 
 **Backend Repo:** https://github.com/sutt/p1-back
 
@@ -13,13 +15,56 @@ _Will Sutton | October 14, 2025_
 ## Tools & Workflow: 
 Used **Agro** which runs ClaudeCode / Gemini-CLI / Aider  CLI-coders as background agents that spit out results to git worktrees. Each prompt is run 2-3 times, and after manual comparison a winner is accepted or the prompt is revised. So each commit is the result of one prompt. More on this below.
 
+**Milestone2 update:** I began implementing more one-off ClaudeCode interactive session for small fixes and developing planning docs.
+
 *Note bene: I want to learn to Cursor badly which is why I'm in the course, but what I went with what I know how to wield to hit the first deadline.*
 
 ## Prompting Strategies: 
 
-And you can see a nice summary of prompt summaries and the linked code they generated below in [DevLog](#devlog).
+*All my prompts are available as markdowns here: [Public Specs](./.public-agdocs/specs/)*
 
-All my prompts are available as markdowns here: [Public Specs](./.public-agdocs/specs/)
+I began using the **planning pattern** we're learning during this milestone for the AI-Chat feature, where we start by developing a markdown files of architectural and task considerations, see [frontend plan](./docs/aitool-plan.md) and [backend plan](https://github.com/sutt/p1-back/blob/master/docs/aitool-plan.md). Since these are separate repos I was copying and paste the plan between the repos.
+
+My most significant frontend prompt was to revamp the UI from a prototype to a pleasant UI one I needed to. I built out five separate mockups with agents and selected my favorite, with `Sonnet-4.1` delivering the winner here, even though 90% of my accepted code comes from `Gemini-2.5-Pro`.
+
+Overall there were three phases to the development this milestone:
+- **AI-Chat-Tool:** *ait-plan-1.md, ait-impl-1.md, ait-connect-1.md, multimodel-ai.md*
+- **UI-Revamp:** *ui-pretty-1.md, ui-fullscreen-1.md, online-wdget.md, reset-data-button.md, key-shortcut.md*
+- **Add-Map-to-Canvas:** *plan-map-1.md, map-start-1.md, map-start-pan.md, map-pan-fix.md, map-toggle-widget.md, map-coord-widget.md*
+
+The other prompt I'm proud of was on the backend for building the service call to OpenAI's API. The planning document really seemed to help get context from the frontend into agents working on the backend like `ai-impl-1.md`. One thing that seemed to work out well is when implementing a new feature, to insturct the AI to leave a ton of comments explaining limitations and control knobs in the code. All the prompts for backend are available [here](https://github.com/sutt/p1-back/tree/master/.public-agdocs/specs).
+
+Finally I did some manual editing to the meta-prompt for the AI widget which seemed to improve its performance somewhat on complex queries:
+
+```diff
+index cbc30f8..ea8de68 100644
+--- a/services/openai_service.py
++++ b/services/openai_service.py
+@@ -257,7 +257,8 @@ class OpenAIService:
+ 
+ CANVAS DETAILS:
+ - Coordinate system: Top-left is (0,0), X increases right, Y increases down
+-- Typical viewport: 800x600 pixels
++- Typical viewport: 800x600 pixels at zoom=1.0
++- use canvasState.viewport.{x,y} state to understand where the user is currently viewing. This can can ran
+ - Shape types: rectangle, circle, text
+ 
+ CRITICAL RULES:
+@@ -271,6 +272,10 @@ CANVAS STATE:
+ You will receive the current canvas state including all shapes and their properties.
+ Use findShapes to locate shapes when IDs are not explicitly mentioned.
+ 
++SPECIAL INSTRUCTIONS:
++When asked to create shapes use the canvasState.viewport.(x, y) to understand where the current user if looking and add the shapes to that area in what manner was requested.
++When asked to create non-trivial layouts (e.g. re-create a logo or mockup) lay those out 100 - 200 points away from exisiting shapes.
++
+```
+
+I show these prompts and dicuss them in more detail below in [Best Prompt Detail](#best-prompt-details).
+
+#### milestone1 prompts
+
+And you can see a nice summary of prompt summaries and the linked code they generated below in [DevLog](#devlog).
 
 The most useful and creative prompts:
 - **`fix-jitter-1`** (*frontend*) - This was the standout for me since it displayed **strong reasoning** to fix the cursor-sync logic. I laboriously wrote up a prompt of the error condition I suspected was causing it, and the AI pumped out a perfect fix.
@@ -29,6 +74,11 @@ The most useful and creative prompts:
 I show these prompts and dicuss them in more detail below in [Best Prompt Detail](#best-prompt-details)
 
 ## Code Analysis: 
+
+AI-generated code is likely > 98% by lines and 90% by commits. The code has become more modularized. As I got rid of some of my early debugging tools, using typescript forced me to delete code via `unused-var` build errors.
+
+#### milestone1
+
 90 - 95% of code is AI generated, 80-90% of commits are AI generated (manual commits are small one offs so they don't account for many lines).
 
 Any commit marked "`manual: ...`" is a manual commit. Pretty much the rest are AI generated, with commit messages written by AI.
@@ -38,9 +88,9 @@ Most of my frontend code stayed in one module `DemoFigma.tsx` and `DemoFigma.css
 ## Strengths & Limitations: 
 
 I was impressed with AI's perf for this project. There wasn't any prompt it failed once the prompt was well crafted. That being said here's some caveats: 
-- Not defensive enough: e.g. it didn't anticipate shape coords coming in as decimals and so had validation errors when trying to write to int DB fiedlds.
-- Amateur structure for backend: a very flat structure develop in the python server with too much logic going into `main.py`.
-- I felt like my frontend prompts were too verbose to specify certain areas / buttons, etc to ask it to change.
+- Not defensive enough: e.g. it didn't anticipate shape coords coming in as decimals and so had validation errors when trying to write to int DB fiedlds. **Milestone2 Update:** No longer the case, the AI wrote a great module called `ai_validator.py` which checked each tool call from OpenAI against known methods in the frontend, it can be viewed [here](https://github.com/sutt/p1-back/blob/master/services/ai_validator.py).
+- Amateur structure for backend: a very flat structure develop in the python server with too much logic going into `main.py`. **Milestone2 Update:** no longer the case!
+- I felt like my frontend prompts were too verbose to specify certain areas / buttons, etc to ask it to change. **Milestone2 Update:** after refactoring the UI, there was less need to be very specific with what I ws looking for since the UI was arranged canonically.
 
 
 ## Key Learnings: 
@@ -54,6 +104,8 @@ Another thing I learned is that even though AI for frontend is very useful for m
 I've created a table of all my prompts and associated commits below. If you click the links, they'll take you to files or views on GitHub. *(nota bene: this table generated by AI ofc)*
 
 #### Frontend
+
+*(not updated for milestone2)*
 
 | Task File | Contents (truncated) | Accepted SHA | Non-test Diffs | Test Diffs | Notes |
 |------|-------------|---------|-------------|------------|-----------|
@@ -77,11 +129,34 @@ I've created a table of all my prompts and associated commits below. If you clic
 | [scaffold-canvas.md](./.public-agdocs/specs/scaffold-canvas.md) | Replace hello world with Figma clone scaffold: Add menu section, tools for navigation/shapes, full-page canvas with pan/zoom. Create coordinate system with click debugging and zoom/pan state logging. Keep vanilla without deps. | [d41176c](https://github.com/sutt/p1-front/commit/d41176c) | +173/-2 | +0/-0 | |
 | [simple-page.md](./.public-agdocs/specs/simple-page.md) | Create DemoFigma component with Hello World page accessible at /canvas route. Link component to main App/vite-starter page via router. | [b5d4d15](https://github.com/sutt/p1-front/commit/b5d4d15) | +32/-2 | +0/-0 | |
 
-#### Backend
-
-TBD
 
 ## Best Prompt Details
+
+#### `ui-pretty-1`
+
+One cool thing was even though I told it to ignore the ai widget for later, it ended up crafting a very nice AI widget form for me. Time back!
+
+```markdown
+update the ui of DemoFigma drastically to display as a modern ui.
+- move around elements as you see fit
+    - note: eventually signup and login forms will be moved out of in page into a pop-up modal
+- no need to preserve the "Enable DEbug Tools" section
+- fix the layout of the canvas to fill the screen below horizontally and to the the bottom, you can leave room at the top for tools and menus, make this responsive to handle a variety of 
+- use icons to replace the words Rect, Cricle, Text buttons. Enable tool tip over these buttons to explain to the user what they do. 
+- Slighlty refactor the ai-tool-widget, but we'll work on that one more in a later feature, so just get it to fit with the existing layout you produce. The ai widget should only display a button toggle open/close the full form and other ui elements for this feature.
+```
+
+#### `ait-impl-1`
+
+You can see the the full solution delivered here: https://github.com/sutt/p1-back/commit/c4c2b5 .
+
+```markdown
+scaffold a basic proof-of-concept implementation laid out in docs/aitool-plan.md for the backend.
+
+- add debug/print statements for this action controlled toggleable by an AI_DEBUG variable
+- add comments describing the limitation of your approach or what will need to be added to extend beyond the basic concept
+- add comments describing any manual intervention / addition, e.g. add env vars
+```
 
 #### `fix-jitter-1`
 
