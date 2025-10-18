@@ -1,3 +1,5 @@
+import type { ScreenshotData } from '../types/screenshot';
+
 export interface AICommand {
   action: string; // 'createShape', 'moveShape', 'resizeShape', etc.
   params: Record<string, any>;
@@ -11,6 +13,7 @@ export interface AIRequest {
     viewport: { zoom: number; pan: { x: number; y: number } };
   };
   model?: string;
+  screenshot?: ScreenshotData; // Optional screenshot with geographical context
 }
 
 export interface AIResponse {

@@ -92,6 +92,236 @@ interface ScreenshotConfig {
 
 ## Backend Implementation Requirements
 
+### 0. Quick Start Guide for Backend Developers
+
+This section provides a step-by-step guide for backend developers to implement screenshot support.
+
+#### Step 1: Update API Request Handler
+
+**Accept the new screenshot field in your request:**
+```typescript
+// Before
+interface AIChatRequest {
+  message: string;
+  conversationId?: string;
+}
+
+// After
+interface AIChatRequest {
+  message: string;
+  conversationId?: string;
+  screenshot?: ScreenshotData; // New field
+}
+
+interface ScreenshotData {
+  data: string; // base64 encoded PNG or JPEG
+  format: 'png' | 'jpeg';
+  capturedAt: string; // ISO timestamp
+  viewportInfo: ViewportInfo;
+}
+
+interface ViewportInfo {
+  width: number;
+  height: number;
+  mapCenter: [number, number]; // [lat, lng]
+  mapZoom: number;
+  mapBounds?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  };
+}
+```
+
+#### Step 2: Validate Screenshot Data
+
+```typescript
+function validateScreenshot(screenshot?: ScreenshotData): boolean {
+  if (!screenshot) return true; // Optional field
+
+  // Validate required fields
+  if (!screenshot.data || !screenshot.format || !screenshot.viewportInfo) {
+    throw new Error('Invalid screenshot data: missing required fields');
+  }
+
+  // Validate base64 format
+  if (!screenshot.data.match(/^[A-Za-z0-9+/]+=*$/)) {
+    throw new Error('Invalid screenshot data: not valid base64');
+  }
+
+  // Validate image size (e.g., max 10MB base64)
+  const sizeInBytes = (screenshot.data.length * 3) / 4;
+  if (sizeInBytes > 10 * 1024 * 1024) {
+    throw new Error('Screenshot too large: max 10MB');
+  }
+
+  // Validate viewport info
+  const { mapCenter, mapZoom } = screenshot.viewportInfo;
+  if (!Array.isArray(mapCenter) || mapCenter.length !== 2) {
+    throw new Error('Invalid mapCenter: must be [lat, lng]');
+  }
+  if (mapCenter[0] < -90 || mapCenter[0] > 90) {
+    throw new Error('Invalid latitude: must be between -90 and 90');
+  }
+  if (mapCenter[1] < -180 || mapCenter[1] > 180) {
+    throw new Error('Invalid longitude: must be between -180 and 180');
+  }
+  if (mapZoom < 0 || mapZoom > 22) {
+    throw new Error('Invalid zoom level: must be between 0 and 22');
+  }
+
+  return true;
+}
+```
+
+#### Step 3: Calculate Coverage Area
+
+```typescript
+/**
+ * Calculate approximate coverage area in miles based on zoom level
+ * Formula based on Web Mercator projection at equator
+ */
+function calculateCoverageAreaMiles(zoom: number, latitude: number): number {
+  // Earth's circumference at equator in miles
+  const earthCircumference = 24901;
+
+  // At zoom level 0, one tile covers entire earth
+  // Each zoom level doubles the number of tiles (halves the coverage)
+  const tilesAtZoom = Math.pow(2, zoom);
+  const milesPerTile = earthCircumference / tilesAtZoom;
+
+  // Adjust for latitude (map is wider at equator, narrower at poles)
+  const latitudeAdjustment = Math.cos(latitude * Math.PI / 180);
+
+  return milesPerTile * latitudeAdjustment;
+}
+```
+
+#### Step 4: Format Context for AI
+
+```typescript
+function buildAIContextFromScreenshot(screenshot: ScreenshotData): string {
+  const { mapCenter, mapZoom, mapBounds } = screenshot.viewportInfo;
+  const [lat, lng] = mapCenter;
+
+  const coverageArea = calculateCoverageAreaMiles(mapZoom, lat);
+
+  let context = `The user is viewing a map centered at ${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`;
+  context += ` at zoom level ${mapZoom.toFixed(1)}.`;
+  context += ` The visible area covers approximately ${coverageArea.toFixed(2)} miles.`;
+
+  if (mapBounds) {
+    context += `\nGeographical bounds: ${mapBounds.north.toFixed(4)}°N to ${mapBounds.south.toFixed(4)}°S, `;
+    context += `${mapBounds.west.toFixed(4)}°W to ${mapBounds.east.toFixed(4)}°E.`;
+  }
+
+  return context;
+}
+```
+
+#### Step 5: Send to AI Model (Claude Example)
+
+```typescript
+async function sendToAI(request: AIChatRequest): Promise<string> {
+  const messages: any[] = [];
+
+  // Build the content array
+  const content: any[] = [];
+
+  // If screenshot exists, add image first
+  if (request.screenshot) {
+    // Validate first
+    validateScreenshot(request.screenshot);
+
+    // Add image
+    content.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: `image/${request.screenshot.format}`,
+        data: request.screenshot.data
+      }
+    });
+
+    // Add geographical context
+    const geoContext = buildAIContextFromScreenshot(request.screenshot);
+    const textContent = `${geoContext}\n\nUser message: ${request.message}`;
+    content.push({
+      type: "text",
+      text: textContent
+    });
+  } else {
+    // No screenshot, just text
+    content.push({
+      type: "text",
+      text: request.message
+    });
+  }
+
+  // Make API request to Claude
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      messages: [{
+        role: 'user',
+        content: content
+      }]
+    })
+  });
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+```
+
+#### Step 6: Error Handling
+
+```typescript
+try {
+  validateScreenshot(request.screenshot);
+  const aiResponse = await sendToAI(request);
+  return { success: true, message: aiResponse };
+} catch (error) {
+  console.error('Screenshot processing error:', error);
+
+  // Return user-friendly error
+  if (error.message.includes('Screenshot too large')) {
+    return {
+      success: false,
+      error: 'Screenshot is too large. Please try again with a smaller viewport.'
+    };
+  }
+
+  // For other errors, try without screenshot
+  console.log('Retrying without screenshot...');
+  const fallbackRequest = { ...request, screenshot: undefined };
+  const aiResponse = await sendToAI(fallbackRequest);
+  return {
+    success: true,
+    message: aiResponse,
+    warning: 'Screenshot could not be processed, but your message was sent.'
+  };
+}
+```
+
+#### Key Backend Implementation Notes:
+
+1. **Screenshot is Optional**: Always handle the case where `screenshot` is undefined
+2. **Validate Before Processing**: Check base64 format, size limits, and geographical bounds
+3. **Include Geographical Context**: Use the viewport info to build meaningful context text for the AI
+4. **Error Handling**: If screenshot processing fails, fall back to text-only mode
+5. **Cost Monitoring**: Vision API calls are more expensive - track usage and costs
+6. **Rate Limiting**: Consider limiting screenshot-enabled requests per user/hour
+7. **Logging**: Log screenshot usage for monitoring and debugging
+
 ### 1. API Endpoint Updates
 
 #### Current Endpoint

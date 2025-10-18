@@ -3,6 +3,7 @@ import type { MouseEvent, CSSProperties, FormEvent } from 'react';
 import mapboxgl from 'mapbox-gl';
 import './DemoFigma.css';
 import { sendAIMessage, type AICommand } from './services/aiService';
+import { captureScreenshot, validateScreenshotData } from './services/screenshotCapture';
 
 
 // Module-wide debug flag
@@ -132,6 +133,8 @@ function DemoFigma() {
   const [aiIsLoading, setAiIsLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
   const [aiModel, setAiModel] = useState('gpt-4o');
+  const [screenshotEnabled, setScreenshotEnabled] = useState(false);
+  const [screenshotStatus, setScreenshotStatus] = useState('');
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -402,8 +405,48 @@ function DemoFigma() {
 
     setAiIsLoading(true);
     setAiMessage('');
+    setScreenshotStatus('');
 
     try {
+      let screenshotData = undefined;
+
+      // Capture screenshot if enabled and map is available
+      if (screenshotEnabled && showMap && mapRef.current) {
+        setScreenshotStatus('Capturing screenshot...');
+        console.log('[AI Chat] Screenshot capture enabled, capturing...');
+
+        const captureResult = await captureScreenshot(
+          mapRef.current,
+          {
+            enabled: true,
+            captureFullApp: false, // Just map
+            quality: 0.8,
+            maxWidth: 1920,
+            maxHeight: 1080,
+            includeInEveryMessage: false,
+          },
+          'app' // Capture the entire app div
+        );
+
+        if (captureResult.success && captureResult.data) {
+          console.log('[AI Chat] Screenshot captured successfully');
+          console.log('[AI Chat] Metrics:', captureResult.metrics);
+
+          // Validate before sending
+          const validation = validateScreenshotData(captureResult.data);
+          if (validation.valid) {
+            screenshotData = captureResult.data;
+            setScreenshotStatus(`Screenshot captured (${(captureResult.metrics!.imageSize / 1024).toFixed(0)} KB)`);
+          } else {
+            console.error('[AI Chat] Screenshot validation failed:', validation.errors);
+            setScreenshotStatus('Screenshot validation failed');
+          }
+        } else {
+          console.error('[AI Chat] Screenshot capture failed:', captureResult.error);
+          setScreenshotStatus('Screenshot capture failed');
+        }
+      }
+
       const response = await sendAIMessage({
         user: currentUser,
         message: aiInput,
@@ -412,6 +455,7 @@ function DemoFigma() {
           viewport: { zoom, pan }
         },
         model: aiModel,
+        screenshot: screenshotData,
       });
 
       setAiMessage(response.message);
@@ -1351,11 +1395,26 @@ function DemoFigma() {
                   <option value="gpt-4o">GPT-4o (Fast)</option>
                   <option value="gpt-5">GPT-5 (Advanced)</option>
                 </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9em' }}>
+                  <input
+                    type="checkbox"
+                    checked={screenshotEnabled}
+                    onChange={(e) => setScreenshotEnabled(e.target.checked)}
+                    disabled={aiIsLoading || !showMap}
+                    title={!showMap ? 'Map must be enabled to capture screenshots' : 'Include screenshot with geographical context'}
+                  />
+                  Screenshot
+                </label>
                 <button type="submit" disabled={aiIsLoading} className="send-button">
                   {aiIsLoading ? 'Thinking...' : 'Send'}
                 </button>
               </div>
             </form>
+            {screenshotStatus && (
+              <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+                {screenshotStatus}
+              </div>
+            )}
             {aiMessage && (
               <div className="ai-response">
                 <strong>AI:</strong> {aiMessage}
