@@ -822,6 +822,11 @@ function DemoFigma() {
     baseMapZoomRef.current = initialZoom;
     setCurrentMapZoom(initialZoom);
 
+    // FIX: Synchronize map with current canvas pan state to prevent coordinate drift
+    // If the canvas was panned before the map was initialized, we need to sync the map position
+    // The map needs to be panned in the opposite direction of the canvas pan
+    mapRef.current.panBy([-pan.x, -pan.y], { duration: 0 });
+
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
     // synchronizing the map's viewport with the canvas's zoom state.
