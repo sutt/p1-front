@@ -796,6 +796,27 @@ function DemoFigma() {
 
     if (mapRef.current || !mapContainerRef.current) return;
 
+    if (zoom !== 1.0 && canvasRef.current) {
+      setHintMessage('Auto-adjusting zoom to sync with map...');
+      setTimeout(() => setHintMessage(''), 3000);
+
+      const rect = canvasRef.current.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const pointX = (centerX - pan.x) / zoom;
+      const pointY = (centerY - pan.y) / zoom;
+
+      const newZoom = 1.0;
+
+      const newPanX = centerX - pointX * newZoom;
+      const newPanY = centerY - pointY * newZoom;
+
+      setZoom(newZoom);
+      setPan({ x: newPanX, y: newPanY });
+      return;
+    }
+
     // MANUAL INTERVENTION: You need to add your Mapbox access token to your .env file.
     // Create a .env file in the my-react-app directory and add:
     // VITE_MAPBOX_TOKEN=your_token_here
@@ -830,7 +851,7 @@ function DemoFigma() {
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
     // synchronizing the map's viewport with the canvas's zoom state.
-  }, [showMap]);
+  }, [showMap, zoom, pan]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     dragHappened.current = false;
