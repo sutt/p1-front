@@ -419,13 +419,13 @@ function DemoFigma() {
           mapRef.current,
           {
             enabled: true,
-            captureFullApp: false, // Just map
+            captureFullApp: false, // Just map and shapes
             quality: 0.8,
             maxWidth: 1920,
             maxHeight: 1080,
             includeInEveryMessage: false,
           },
-          'app' // Capture the entire app div
+          '.canvas-container' // Capture the canvas area (excludes menu bar)
         );
 
         if (captureResult.success && captureResult.data) {

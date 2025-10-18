@@ -120,26 +120,65 @@ export function calculateCoverageArea(zoom: number, latitude: number): number {
 // ============================================================================
 
 /**
- * Capture screenshot of specified element
+ * Capture screenshot with manual compositing of Mapbox canvas and shapes
  */
 async function captureElement(
   element: HTMLElement,
-  config: ScreenshotConfig
+  config: ScreenshotConfig,
+  map: MapboxMap
 ): Promise<string> {
   log.debug('Capturing element:', element.tagName, element.className);
-  log.time('html2canvas');
 
   try {
-    const canvas = await html2canvas(element, {
-      useCORS: true,
-      allowTaint: false,
-      logging: DEBUG_SCREENSHOT,
-      scale: 1, // Use device pixel ratio
-      backgroundColor: '#ffffff',
-    });
+    // Get the Mapbox canvas directly
+    const mapCanvas = map.getCanvas();
+    log.debug('Mapbox canvas:', mapCanvas ? `${mapCanvas.width}x${mapCanvas.height}` : 'not found');
 
-    log.timeEnd('html2canvas');
-    log.debug('Canvas created:', `${canvas.width}x${canvas.height}`);
+    // Create a new canvas for compositing
+    const compositeCanvas = document.createElement('canvas');
+    const rect = element.getBoundingClientRect();
+    compositeCanvas.width = rect.width;
+    compositeCanvas.height = rect.height;
+    const ctx = compositeCanvas.getContext('2d');
+
+    if (!ctx) {
+      throw new Error('Failed to get canvas context');
+    }
+
+    log.debug('Composite canvas created:', `${compositeCanvas.width}x${compositeCanvas.height}`);
+
+    // Step 1: Draw background color
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+    log.debug('Background drawn');
+
+    // Step 2: Draw the Mapbox canvas if it exists
+    if (mapCanvas) {
+      log.time('draw-map');
+      ctx.drawImage(mapCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height);
+      log.timeEnd('draw-map');
+      log.debug('Map canvas drawn');
+    }
+
+    // Step 3: Capture shapes layer with html2canvas
+    log.time('html2canvas-shapes');
+    const shapesCanvas = await html2canvas(element, {
+      useCORS: true,
+      allowTaint: true,
+      logging: DEBUG_SCREENSHOT,
+      scale: 1,
+      backgroundColor: null, // Transparent background to overlay on map
+    });
+    log.timeEnd('html2canvas-shapes');
+    log.debug('Shapes canvas captured:', `${shapesCanvas.width}x${shapesCanvas.height}`);
+
+    // Step 4: Composite shapes on top of map
+    log.time('composite');
+    ctx.drawImage(shapesCanvas, 0, 0);
+    log.timeEnd('composite');
+    log.debug('Shapes composited onto map');
+
+    const canvas = compositeCanvas;
 
     // Resize if needed
     const resizedCanvas = resizeCanvas(canvas, config);
@@ -225,18 +264,18 @@ function resizeCanvas(canvas: HTMLCanvasElement, config: ScreenshotConfig): HTML
  *
  * @param map - Mapbox GL map instance
  * @param config - Screenshot configuration (optional, uses defaults)
- * @param elementId - ID of element to capture (defaults to 'app')
+ * @param elementSelector - ID or class selector of element to capture (e.g., 'app', 'canvas-container', '.my-class')
  * @returns Screenshot capture result
  */
 export async function captureScreenshot(
   map: MapboxMap,
   config: Partial<ScreenshotConfig> = {},
-  elementId: string = 'app'
+  elementSelector: string = 'app'
 ): Promise<ScreenshotCaptureResult> {
   const startTime = performance.now();
   log.info('=== Starting screenshot capture ===');
   log.debug('Config:', config);
-  log.debug('Element ID:', elementId);
+  log.debug('Element selector:', elementSelector);
 
   // Merge with defaults
   const finalConfig: ScreenshotConfig = {
@@ -256,13 +295,28 @@ export async function captureScreenshot(
       };
     }
 
-    // Get element to capture
-    const element = document.getElementById(elementId);
+    // Get element to capture - support both ID and class selectors
+    let element: HTMLElement | null = null;
+
+    if (elementSelector.startsWith('.')) {
+      // Class selector
+      element = document.querySelector(elementSelector) as HTMLElement;
+      log.debug(`Looking for element by class: ${elementSelector}`);
+    } else if (elementSelector.startsWith('#')) {
+      // Explicit ID selector
+      element = document.querySelector(elementSelector) as HTMLElement;
+      log.debug(`Looking for element by ID: ${elementSelector}`);
+    } else {
+      // Assume it's an ID without #
+      element = document.getElementById(elementSelector);
+      log.debug(`Looking for element by ID: #${elementSelector}`);
+    }
+
     if (!element) {
-      log.error(`Element not found: #${elementId}`);
+      log.error(`Element not found: ${elementSelector}`);
       return {
         success: false,
-        error: `Element not found: #${elementId}`,
+        error: `Element not found: ${elementSelector}`,
       };
     }
 
@@ -282,7 +336,7 @@ export async function captureScreenshot(
 
     // Capture screenshot
     log.debug('--- Capturing screenshot ---');
-    const imageData = await captureElement(element, finalConfig);
+    const imageData = await captureElement(element, finalConfig, map);
 
     // Calculate metrics
     const captureTime = performance.now() - startTime;
