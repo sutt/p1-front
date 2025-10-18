@@ -807,6 +807,11 @@ function DemoFigma() {
       center: [-71.0801725062002, 42.35212399526381],
       zoom: 13,
       interactive: false,
+      // SCREENSHOT FEATURE: Enables screenshot capture of the map canvas
+      // NOTE: This uses slightly more GPU memory (~2-4MB). If this causes performance
+      // issues on low-end devices, we can explore alternative screenshot methods
+      // (see docs/screenshot-capture-feature.md for alternatives)
+      preserveDrawingBuffer: true,
     });
     const initialZoom = mapRef.current.getZoom();
     baseMapZoomRef.current = initialZoom;
