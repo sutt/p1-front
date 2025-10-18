@@ -108,6 +108,11 @@ function DemoFigma() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const onlineUsersRef = useRef<HTMLDivElement>(null);
   const mapWidgetRef = useRef<HTMLDivElement>(null);
+
+  // Touch support state (Tier 1)
+  const [isTouching, setIsTouching] = useState(false);
+  const lastTouchPosition = useRef<{ x: number; y: number } | null>(null);
+  const activeTouchId = useRef<number | null>(null);
   const [currentUser, setCurrentUser] = useState('');
   const [hintMessage, setHintMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<UserOnlineResponse[]>([]);
@@ -986,6 +991,61 @@ function DemoFigma() {
     }
   };
 
+  // Touch event handlers (Tier 1: Basic Panning)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only handle single touch for panning
+    if (e.touches.length !== 1) return;
+    if (activeTool) return; // Don't pan if drawing tool active
+
+    const touch = e.touches[0];
+    activeTouchId.current = touch.identifier;
+    lastTouchPosition.current = { x: touch.clientX, y: touch.clientY };
+    setIsTouching(true);
+    dragHappened.current = false;
+
+    // Prevent default to stop scrolling
+    e.preventDefault();
+  }, [activeTool]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isTouching || activeTouchId.current === null) return;
+
+    // Find the active touch
+    const touch = Array.from(e.touches).find(t => t.identifier === activeTouchId.current);
+    if (!touch || !lastTouchPosition.current) return;
+
+    dragHappened.current = true;
+    const dx = touch.clientX - lastTouchPosition.current.x;
+    const dy = touch.clientY - lastTouchPosition.current.y;
+    lastTouchPosition.current = { x: touch.clientX, y: touch.clientY };
+
+    // Sync with mapbox
+    if (mapRef.current) {
+      mapRef.current.panBy([-dx, -dy], { duration: 0 });
+    }
+
+    // Update canvas pan
+    setPan(prevPan => ({
+      x: prevPan.x + dx,
+      y: prevPan.y + dy
+    }));
+
+    e.preventDefault();
+  }, [isTouching]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Check if our tracked touch ended
+    const endedTouch = Array.from(e.changedTouches).find(
+      t => t.identifier === activeTouchId.current
+    );
+
+    if (endedTouch) {
+      setIsTouching(false);
+      lastTouchPosition.current = null;
+      activeTouchId.current = null;
+    }
+  }, []);
+
   const handleShapeMouseDown = (e: MouseEvent, shape: Shape) => {
     if (activeTool && activeTool !== 'select') return;
 
@@ -1445,7 +1505,7 @@ function DemoFigma() {
       )}
       <div
         ref={canvasRef}
-        className={`canvas-container ${activeTool ? 'shape-creation-mode' : ''}`}
+        className={`canvas-container ${activeTool ? 'shape-creation-mode' : ''} ${isTouching ? 'touching' : ''}`}
         style={{
           '--grid-size': `${50 * zoom}px`,
           '--pan-x': `${pan.x}px`,
@@ -1458,6 +1518,10 @@ function DemoFigma() {
         onMouseLeave={handleMouseUp} // Stop panning if mouse leaves canvas
         onClick={handleCanvasClick}
         onContextMenu={(e) => e.preventDefault()} // prevent context menu on right click
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {showMap && <div ref={mapContainerRef} className="map-container" />}
         <div

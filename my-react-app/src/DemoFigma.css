@@ -225,6 +225,11 @@
   background-size: var(--grid-size, 50px) var(--grid-size, 50px);
   background-position: var(--pan-x, 0px) var(--pan-y, 0px);
   min-height: 0;
+
+  /* Touch support (Tier 1) */
+  touch-action: none; /* Disable browser pan/zoom */
+  -webkit-user-select: none; /* Prevent text selection on touch */
+  user-select: none;
 }
 
 .canvas-container:active {
@@ -241,6 +246,11 @@
 
 .canvas-container.shape-creation-mode {
   cursor: crosshair;
+}
+
+/* Touch feedback (Tier 1) */
+.canvas-container.touching {
+  cursor: grabbing;
 }
 
 .canvas-content {
