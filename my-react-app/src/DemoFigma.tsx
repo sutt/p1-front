@@ -108,6 +108,16 @@ function DemoFigma() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const onlineUsersRef = useRef<HTMLDivElement>(null);
   const mapWidgetRef = useRef<HTMLDivElement>(null);
+  const topLeftGeoRef = useRef<mapboxgl.LngLat | null>(null);
+
+  const applyTopLeftAnchor = useCallback(() => {
+    if (!mapRef.current || !topLeftGeoRef.current) return;
+    const container = mapRef.current.getContainer();
+    const tlPx = mapRef.current.project(topLeftGeoRef.current);
+    const centerPx = [tlPx.x + container.clientWidth / 2, tlPx.y + container.clientHeight / 2] as [number, number];
+    const centerLngLat = mapRef.current.unproject(centerPx);
+    mapRef.current.jumpTo({ center: centerLngLat, zoom: mapRef.current.getZoom() });
+  }, []);
 
   // Touch support state (Tier 1)
   const [isTouching, setIsTouching] = useState(false);
@@ -767,6 +777,8 @@ function DemoFigma() {
             setCurrentMapZoom(targetMapZoom);
             const around = mapRef.current.unproject([mouseX, mouseY] as [number, number]);
             mapRef.current.easeTo({ zoom: targetMapZoom, around, duration: 0 });
+            // Maintain a stable top-left geographic anchor across window sizes
+            topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
         }
 
         if (DEBUG) {
@@ -847,11 +859,28 @@ function DemoFigma() {
     // If the canvas was panned before the map was initialized, we need to sync the map position
     // The map needs to be panned in the opposite direction of the canvas pan
     mapRef.current.panBy([-pan.x, -pan.y], { duration: 0 });
+    // Capture the current top-left as our geographic anchor to keep alignment stable across window sizes
+    topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
 
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
     // synchronizing the map's viewport with the canvas's zoom state.
   }, [showMap, zoom, pan]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+        if (topLeftGeoRef.current) {
+          applyTopLeftAnchor();
+        }
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [applyTopLeftAnchor]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     dragHappened.current = false;
@@ -980,6 +1009,8 @@ function DemoFigma() {
 
       if (mapRef.current) {
         mapRef.current.panBy([-dx, -dy], { duration: 0 });
+        // Update our top-left anchor after panning
+        topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
       }
       
       setPan(prevPan => {
@@ -1048,6 +1079,8 @@ function DemoFigma() {
     // Sync with mapbox
     if (mapRef.current) {
       mapRef.current.panBy([-dx, -dy], { duration: 0 });
+      // Update our top-left anchor after panning
+      topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
     }
 
     // Update canvas pan
