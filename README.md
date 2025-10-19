@@ -14,7 +14,7 @@ _Will Sutton | October 19, 2025_
 
 ## Featrues & Showcase
 
-TODO - insert video
+![video-of-ai-feat](./assets/demo1-cut2.gif)
 
 ![req-res-aitool](./assets/diagram-1.png)
 
