@@ -841,8 +841,17 @@ function DemoFigma() {
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       // style: 'mapbox://styles/mapbox/streets-v12',
+      // style: 'mapbox://styles/mapbox/bright-v8',
       style: 'mapbox://styles/wsutton17/cmgva32ja008401qo841fa41q',
-      center: [-71.0801725062002, 42.35212399526381],
+      // center: [-71.0801725062002, 42.35212399526381],
+      // zoom: 13,
+      // center: [-71.4313, 44.3036],
+      // zoom: 15,
+      // atx
+      // center: [-97.7826, 30.2737 ],
+      // zoom: 13,
+      // atx2: 
+      center: [-97.7373, 30.2619],
       zoom: 13,
       interactive: false,
       // SCREENSHOT FEATURE: Enables screenshot capture of the map canvas
