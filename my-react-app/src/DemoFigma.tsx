@@ -110,40 +110,6 @@ function DemoFigma() {
   const mapWidgetRef = useRef<HTMLDivElement>(null);
   const topLeftGeoRef = useRef<mapboxgl.LngLat | null>(null);
 
-  // Stable map/canvas alignment helpers and persisted anchor (works even before map init)
-  const ANCHOR_STORAGE_KEY = 'map_top_left_anchor_v1';
-  const DEFAULT_MAP_CENTER: [number, number] = [-71.0801725062002, 42.35212399526381];
-  const DEFAULT_MAP_ZOOM = 13;
-
-  const worldSize = (z: number) => 512 * Math.pow(2, z);
-  const lngLatToWorld = (lng: number, lat: number, z: number) => {
-    const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng, lat });
-    const size = worldSize(z);
-    return { x: mc.x * size, y: mc.y * size };
-  };
-  const worldToLngLat = (x: number, y: number, z: number) => {
-    const size = worldSize(z);
-    // Mapbox types do not expose a typed constructor, so cast to any.
-    const mc = new (mapboxgl as any).MercatorCoordinate(x / size, y / size);
-    const ll = mc.toLngLat();
-    return { lng: ll.lng, lat: ll.lat };
-  };
-  const computeTopLeftFromCenter = (center: { lng: number; lat: number }, z: number, width: number, height: number) => {
-    const c = lngLatToWorld(center.lng, center.lat, z);
-    return worldToLngLat(c.x - width / 2, c.y - height / 2, z);
-  };
-  const computeCenterFromTopLeft = (topLeft: { lng: number; lat: number }, z: number, width: number, height: number) => {
-    const tl = lngLatToWorld(topLeft.lng, topLeft.lat, z);
-    return worldToLngLat(tl.x + width / 2, tl.y + height / 2, z);
-  };
-  const persistAnchor = (lng: number, lat: number, z: number) => {
-    try {
-      localStorage.setItem(ANCHOR_STORAGE_KEY, JSON.stringify({ lng, lat, zoom: z }));
-    } catch {
-      // ignore
-    }
-  };
-
   const applyTopLeftAnchor = useCallback(() => {
     if (!mapRef.current || !topLeftGeoRef.current) return;
     const container = mapRef.current.getContainer();
@@ -234,37 +200,6 @@ function DemoFigma() {
       }
     };
     checkAuth();
-  }, []);
-
-  // Initialize a stable top-left geographic anchor before the map is created
-  useEffect(() => {
-    // If we already have an anchor (from a previous session or runtime), do nothing
-    if (topLeftGeoRef.current) return;
-    try {
-      const saved = localStorage.getItem(ANCHOR_STORAGE_KEY);
-      if (saved) {
-        const { lng, lat, zoom: z } = JSON.parse(saved);
-        if (typeof lng === 'number' && typeof lat === 'number' && typeof z === 'number') {
-          topLeftGeoRef.current = new mapboxgl.LngLat(lng, lat);
-          baseMapZoomRef.current = z;
-          return;
-        }
-      }
-    } catch {}
-    // Compute an anchor using the default center and the current canvas size
-    const canvasEl = canvasRef.current;
-    if (!canvasEl) return;
-    const { clientWidth, clientHeight } = canvasEl;
-    if (clientWidth === 0 || clientHeight === 0) return;
-    const topLeft = computeTopLeftFromCenter(
-      { lng: DEFAULT_MAP_CENTER[0], lat: DEFAULT_MAP_CENTER[1] },
-      DEFAULT_MAP_ZOOM,
-      clientWidth,
-      clientHeight
-    );
-    topLeftGeoRef.current = new mapboxgl.LngLat(topLeft.lng, topLeft.lat);
-    baseMapZoomRef.current = DEFAULT_MAP_ZOOM;
-    persistAnchor(topLeft.lng, topLeft.lat, DEFAULT_MAP_ZOOM);
   }, []);
 
   const selectedShapeForCurrentUser = shapes.find(s => s.selectedBy.includes(currentUser));
@@ -844,9 +779,6 @@ function DemoFigma() {
             mapRef.current.easeTo({ zoom: targetMapZoom, around, duration: 0 });
             // Maintain a stable top-left geographic anchor across window sizes
             topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
-            if (topLeftGeoRef.current) {
-              persistAnchor(topLeftGeoRef.current.lng, topLeftGeoRef.current.lat, baseMapZoomRef.current ?? mapRef.current.getZoom());
-            }
         }
 
         if (DEBUG) {
@@ -923,29 +855,12 @@ function DemoFigma() {
     baseMapZoomRef.current = initialZoom;
     setCurrentMapZoom(initialZoom);
 
-    // If we have a precomputed top-left anchor, position the map so that [0,0] corresponds to it
-    if (topLeftGeoRef.current) {
-      const container = mapRef.current.getContainer();
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      const targetCenter = computeCenterFromTopLeft(
-        { lng: topLeftGeoRef.current.lng, lat: topLeftGeoRef.current.lat },
-        baseMapZoomRef.current!,
-        width,
-        height
-      );
-      mapRef.current.jumpTo({ center: targetCenter, zoom: baseMapZoomRef.current! });
-    }
-
     // FIX: Synchronize map with current canvas pan state to prevent coordinate drift
     // If the canvas was panned before the map was initialized, we need to sync the map position
     // The map needs to be panned in the opposite direction of the canvas pan
     mapRef.current.panBy([-pan.x, -pan.y], { duration: 0 });
     // Capture the current top-left as our geographic anchor to keep alignment stable across window sizes
     topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
-    if (topLeftGeoRef.current) {
-      persistAnchor(topLeftGeoRef.current.lng, topLeftGeoRef.current.lat, baseMapZoomRef.current ?? mapRef.current.getZoom());
-    }
 
     // MANUAL INTERVENTION: This is a proof-of-concept. The map pans with the canvas,
     // but does not zoom with it. A more advanced implementation would require
@@ -1096,9 +1011,6 @@ function DemoFigma() {
         mapRef.current.panBy([-dx, -dy], { duration: 0 });
         // Update our top-left anchor after panning
         topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
-        if (topLeftGeoRef.current) {
-          persistAnchor(topLeftGeoRef.current.lng, topLeftGeoRef.current.lat, baseMapZoomRef.current ?? mapRef.current.getZoom());
-        }
       }
       
       setPan(prevPan => {
@@ -1169,9 +1081,6 @@ function DemoFigma() {
       mapRef.current.panBy([-dx, -dy], { duration: 0 });
       // Update our top-left anchor after panning
       topLeftGeoRef.current = mapRef.current.unproject([0, 0]);
-      if (topLeftGeoRef.current) {
-        persistAnchor(topLeftGeoRef.current.lng, topLeftGeoRef.current.lat, baseMapZoomRef.current ?? mapRef.current.getZoom());
-      }
     }
 
     // Update canvas pan
