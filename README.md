@@ -1,6 +1,6 @@
-# GauntletAI - P1 | Milestone1 | DevLog
+# GauntletAI | Project1 | GeoAgent Collab
 
-_Will Sutton | October 17, 2025_
+_Will Sutton | October 19, 2025_
 
 **Deployed here:** https://gauntlet.lightningcloud.dev/canvas
 
@@ -12,14 +12,45 @@ _Will Sutton | October 17, 2025_
 
 ---
 
+## Featrues & Showcase
+
+TODO - insert video
+
+![req-res-aitool](./assets/diagram-1.png)
+
+**Diagram Caption:** This demonstrates how the screenshot (via html2canvas) is captured on the client, sent to the server, which then performs image manipulatin to add annotation of the coordinates onto the image, along with augmenting the written prompt with meta information about the position of the canvas and the map, which is sent to AI endpoint.
+
+TODO: explain the larger pattern of tile content + examples of other types of tiles
+
+## AI Dev Log
+
 ## Tools & Workflow: 
 Used **Agro** which runs ClaudeCode / Gemini-CLI / Aider  CLI-coders as background agents that spit out results to git worktrees. Each prompt is run 2-3 times, and after manual comparison a winner is accepted or the prompt is revised. So each commit is the result of one prompt. More on this below.
 
 **Milestone2 update:** I began implementing more one-off ClaudeCode interactive session for small fixes and developing planning docs.
 
+****Final phase update:**
+
 *Note bene: I want to learn to Cursor badly which is why I'm in the course, but what I went with what I know how to wield to hit the first deadline.*
 
 ## Prompting Strategies: 
+
+**Final phase:** I began using planning documents which cames with wins and losses
+- Good: created fuller features, more modularized and better architected code, including nice features that weren't in the user prompt.
+- Bad: more difficult to debug a fully built, even with debugging planning docs.
+
+The major final push was to:
+ - Add a map to canvas and sync the coordinates, 
+ - Add attach a screenshot of the map onto the request to create the AI assistant
+ 
+Both of these features required a pipeline of of coordinate transforms to convert canvas-coordinates and geo-coordinates back-and-forth on both the client and the server.
+
+Another pattern I began using is adding extensive in-source comments to describe the limitations and interventions needed.
+- Good:
+- Bad:
+
+
+#### Milestone2 Report 
 
 *All my prompts are available as markdowns here: [Public Specs](./.public-agdocs/specs/)*
 
@@ -36,33 +67,11 @@ The other prompt I'm proud of was on the backend for building the service call t
 
 Finally I did some manual editing to the meta-prompt for the AI widget which seemed to improve its performance somewhat on complex queries:
 
-```diff
-index cbc30f8..ea8de68 100644
---- a/services/openai_service.py
-+++ b/services/openai_service.py
-@@ -257,7 +257,8 @@ class OpenAIService:
- 
- CANVAS DETAILS:
- - Coordinate system: Top-left is (0,0), X increases right, Y increases down
--- Typical viewport: 800x600 pixels
-+- Typical viewport: 800x600 pixels at zoom=1.0
-+- use canvasState.viewport.{x,y} state to understand where the user is currently viewing. This can can ran
- - Shape types: rectangle, circle, text
- 
- CRITICAL RULES:
-@@ -271,6 +272,10 @@ CANVAS STATE:
- You will receive the current canvas state including all shapes and their properties.
- Use findShapes to locate shapes when IDs are not explicitly mentioned.
- 
-+SPECIAL INSTRUCTIONS:
-+When asked to create shapes use the canvasState.viewport.(x, y) to understand where the current user if looking and add the shapes to that area in what manner was requested.
-+When asked to create non-trivial layouts (e.g. re-create a logo or mockup) lay those out 100 - 200 points away from exisiting shapes.
-+
-```
+
 
 I show these prompts and dicuss them in more detail below in [Best Prompt Detail](#best-prompt-details).
 
-#### milestone1 prompts
+#### Milestone1 Report
 
 And you can see a nice summary of prompt summaries and the linked code they generated below in [DevLog](#devlog).
 
@@ -105,7 +114,7 @@ I've created a table of all my prompts and associated commits below. If you clic
 
 #### Frontend
 
-*(not updated for milestone2)*
+*(only partial complete through Milestone1)*
 
 | Task File | Contents (truncated) | Accepted SHA | Non-test Diffs | Test Diffs | Notes |
 |------|-------------|---------|-------------|------------|-----------|
